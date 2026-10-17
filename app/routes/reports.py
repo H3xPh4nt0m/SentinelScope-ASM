@@ -79,18 +79,31 @@ def technical():
 @require_perm("report:view")
 def policy_audit():
     from app.models.audit import AuditLog, LLMAction
-    from app.models.policy import Policy, PolicyVersion
+    from app.models.core import User
+    from app.models.policy import Policy
     org_id = current_org()
     policy = Policy.query.filter_by(organization_id=org_id).first()
     versions = policy.versions if policy else []
+    author_ids = {v.author_id for v in versions if v.author_id}
+    authors = {u.id: u.username for u in User.query.filter(User.id.in_(author_ids)).all()} \
+        if author_ids else {}
+    publish_rows = (AuditLog.query.filter(AuditLog.organization_id == org_id,
+                                          AuditLog.action.in_(("policy_publish", "policy_rollback")))
+                    .order_by(AuditLog.created_at.desc()).all())
+    publishers = {}
+    for row in publish_rows:
+        publishers.setdefault(str(row.resource_id), row.username)
     decisions = (AuditLog.query.filter(AuditLog.organization_id == org_id,
                                        AuditLog.action.in_(("acl_denied", "scan_create",
-                                                            "llm_approve", "policy_test")))
+                                                            "llm_approve", "policy_test",
+                                                            "policy_update", "policy_publish",
+                                                            "policy_rollback")))
                  .order_by(AuditLog.created_at.desc()).limit(100).all())
     llm_actions = (LLMAction.query.filter_by(organization_id=org_id)
                    .order_by(LLMAction.created_at.desc()).limit(50).all())
     return render_template("reports/policy_audit.html", org_name=_org_name(),
-                           policy=policy, versions=versions, decisions=decisions,
+                           policy=policy, versions=versions, authors=authors,
+                           publishers=publishers, decisions=decisions,
                            llm_actions=llm_actions, **org_context())
 
 

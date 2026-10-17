@@ -39,11 +39,16 @@
     </div>
     {% endif %}
 
-    {% if 'tool:view' in perms or 'scan:view' in perms %}
+    {% if current_org_id and ('scan:view' in perms or 'scan:create' in perms) %}
     <div class="nav-group">
       <div class="nav-title">Discovery &amp; Scans</div>
       {% if 'scan:create' in perms %}<a href="{{ url_for('scans.new') }}">New Scan</a>{% endif %}
-      <a href="{{ url_for('scans.index') }}">Scan Jobs</a>
+      {% if 'scan:view' in perms %}<a href="{{ url_for('scans.index') }}">Scan Jobs</a>{% endif %}
+    </div>
+    {% endif %}
+    {% if 'tool:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Platform Tools</div>
       <a href="{{ url_for('scans.tools') }}">Tool Status</a>
     </div>
     {% endif %}
@@ -89,7 +94,8 @@
       <div class="user-box">
         {% if current_user.is_authenticated %}
           {% if current_user.is_platform_admin %}<span class="badge sev-high">Platform Admin</span>{% endif %}
-          <span>{{ current_user.username }}</span>
+          {% if org_role %}<span class="badge sev-info">{{ org_role|capitalize }}</span>{% endif %}
+          <a href="{{ url_for('profile.index') }}" class="btn btn-secondary btn-sm">{{ current_user.username }}</a>
           {% if current_org_id %}
           <form method="post" action="{{ url_for('auth.select_org') }}" style="display:inline">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">

@@ -19,7 +19,11 @@ def org_context() -> dict:
     alerts = 0
     if org_id:
         alerts = Alert.query.filter_by(organization_id=org_id, acknowledged=False).count()
-    return {"current_org_id": org_id, "permissions": perms, "unacked_alerts": alerts}
+    role = None
+    if current_user.is_authenticated and org_id is not None:
+        role = current_user.role_in(org_id)
+    return {"current_org_id": org_id, "permissions": perms, "org_role": role,
+            "unacked_alerts": alerts}
 
 
 def require_perm(permission: str):

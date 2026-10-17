@@ -1,8 +1,15 @@
 # Organization policy system
 
-## Format
+## Authoring format
 
-Markdown, parsed by `app/policy/parser.py`. Sections (case-insensitive headings):
+The recommended workflow is **Policies → Build policy with form**. The builder collects
+scope, tools, operations, severities, and prose rules, then generates canonical Markdown.
+That Markdown is stored in `PolicyVersion.content`, parsed into `PolicyVersion.parsed`, and
+shown in the generated preview. Advanced Authors can use **Advanced Markdown editor**
+to edit the same canonical artifact directly. Both paths use the same parser and version
+lifecycle.
+
+Markdown is parsed by `app/policy/parser.py`. Sections (case-insensitive headings):
 
 | Section | Content |
 |---------|---------|
@@ -12,8 +19,9 @@ Markdown, parsed by `app/policy/parser.py`. Sections (case-insensitive headings)
 | `## Allowed Operations` | subdomain_discovery, dns_enumeration, port_scan, service_detection, web_probe, vulnerability_scan, passive_recon, tech_detection |
 | `## Restricted Operations` | operations explicitly forbidden (e.g. brute_force) |
 | `## Production Rules` | prose rules; recognized: "Production assets require non-intrusive scans only", "Any intrusive scan requires explicit approval" |
-| `## Vulnerability Scanning` | `Allowed severities: low, medium, high, critical` |
-| `## LLM Rules` / `## Data Access` / `## Scheduling Restrictions` / `## Approval Rules` / `## Export Restrictions` | prose constraints (enforced by backend; LLM rules are also in the system prompt) |
+| `## Vulnerability Scanning` | `Allowed severities: low, medium, high, critical` plus versioned notes |
+| `## Risk Thresholds` | `key: integer` metadata for future/configuration review; current deterministic engine weights remain the source of score behavior |
+| `## LLM Rules` / `## Data Access` / `## Scheduling Restrictions` / `## Approval Rules` / `## Export Restrictions` | versioned reviewer metadata; only explicitly implemented backend checks (tool/operation/scope/severity and recognized `production_rules` phrases) affect decisions; hard LLM safeguards remain in the system prompt |
 
 ## Validation
 
@@ -43,7 +51,7 @@ For a requested action (tool, operation, targets, parameters) the engine
    (schemes/ports stripped; CIDR targets must be subnets of a scope CIDR). Hard deny.
 5. **Severity policy** — requested severities outside `Allowed severities` (vuln scans). Hard deny.
 6. **Production / intrusiveness rules** — active operations on production assets trigger
-   the **approval gate** (manual: explicit operator checkbox; LLM: pending approval flow).
+   the active-interaction warning and explicit approval gate.
 7. Verdict: all hard checks must pass. Every check is recorded with ✓/✗ detail for the
    UI, the audit log, and the policy testing page (`/policies/test`).
 

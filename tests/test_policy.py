@@ -35,6 +35,15 @@ class TestParser:
     def test_empty_policy_has_errors(self):
         assert parse_policy_markdown("")["errors"]
 
+    def test_invalid_severity_is_rejected(self):
+        parsed = parse_policy_markdown(
+            "## Authorized Scope\n### Domains\n- example.com\n"
+            "## Allowed Tools\n- nmap\n## Allowed Operations\n- vulnerability_scan\n"
+            "## Restricted Operations\n- brute_force\n## Production Rules\n- rule\n"
+            "## Vulnerability Scanning\nAllowed severities: bogus\n"
+            "## LLM Rules\n- no bypass\n")
+        assert any("Unknown severity" in error for error in parsed["errors"])
+
 
 class TestPolicyEngine:
     # Acceptance Test 1: unauthorized target scan

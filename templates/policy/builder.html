@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Policy Builder — {{ app_name }}{% endblock %}
+{% block heading %}Policy Builder{% endblock %}
+{% block content %}
+<div class="panel">
+  <p class="muted">Use the form to create a human-readable Markdown policy. SentinelScope
+    validates and versions the generated Markdown exactly like the advanced editor. Nothing
+    controls execution until you publish a validated version.</p>
+  <form method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <h2>Organization</h2>
+    <label>Organization name</label>
+    <input name="organization_name" value="{{ values.organization_name }}" required>
+
+    <h2 style="margin-top:18px">Authorized Scope</h2>
+    <div class="form-row">
+      <div><label>Domains (one per line)</label>
+        <textarea name="domains" rows="5" placeholder="ashik_1.com\n*.ashik_1.com">{{ values.domains|join('\n') }}</textarea></div>
+      <div><label>IP ranges / CIDRs (one per line)</label>
+        <textarea name="ip_ranges" rows="5" placeholder="192.168.245.0/24">{{ values.ip_ranges|join('\n') }}</textarea></div>
+    </div>
+
+    <h2 style="margin-top:18px">Allowed Tools</h2>
+    <div class="form-row" style="flex-wrap:wrap;gap:8px">
+      {% for tool in tools %}
+      <label style="display:inline-flex;align-items:center;gap:5px;width:180px">
+        <input type="checkbox" name="allowed_tools" value="{{ tool }}" style="width:auto"
+               {{ 'checked' if tool in values.allowed_tools }}>{{ tool }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <h2 style="margin-top:18px">Allowed Operations</h2>
+    <div class="form-row" style="flex-wrap:wrap;gap:8px">
+      {% for operation in operations %}
+      <label style="display:inline-flex;align-items:center;gap:5px;width:220px">
+        <input type="checkbox" name="allowed_operations" value="{{ operation }}" style="width:auto"
+               {{ 'checked' if operation in values.allowed_operations }}>{{ operation }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <h2 style="margin-top:18px">Restricted Operations</h2>
+    <div class="form-row" style="flex-wrap:wrap;gap:8px">
+      {% for operation in ['intrusive_scan','brute_force','destructive_test','denial_of_service_test'] %}
+      <label style="display:inline-flex;align-items:center;gap:5px;width:220px">
+        <input type="checkbox" name="restricted_operations" value="{{ operation }}" style="width:auto"
+               {{ 'checked' if operation in values.restricted_operations }}>{{ operation }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <h2 style="margin-top:18px">Vulnerability Scanning</h2>
+    <div class="form-row" style="flex-wrap:wrap;gap:8px">
+      {% for severity in ['info','low','medium','high','critical'] %}
+      <label style="display:inline-flex;align-items:center;gap:5px;width:140px">
+        <input type="checkbox" name="allowed_severities" value="{{ severity }}" style="width:auto"
+               {{ 'checked' if severity in values.allowed_severities }}>{{ severity }}
+      </label>
+      {% endfor %}
+    </div>
+    <label>Vulnerability-scanning notes (one per line)</label>
+    <textarea name="vulnerability_notes" rows="3">{{ values.vulnerability_notes|join('\n') }}</textarea>
+    <label>Restricted operations (custom values, one per line)</label>
+    <textarea name="restricted_operations" rows="3">{{ values.restricted_operations|join('\n') }}</textarea>
+
+    <p class="muted" style="font-size:12px;margin-top:18px">The following rule fields are stored in the versioned policy and shown to reviewers. Tool, operation, scope, severity, and recognized production/approval rules are enforced by the backend; free-form LLM, data-access, scheduling, risk, and export notes are policy metadata and do not override backend security controls.</p>
+    <div class="form-row" style="margin-top:18px">
+      <div><label>Production rules (one per line)</label>
+        <textarea name="production_rules" rows="5">{{ values.production_rules|join('\n') }}</textarea></div>
+      <div><label>LLM rules (one per line)</label>
+        <textarea name="llm_rules" rows="5">{{ values.llm_rules|join('\n') }}</textarea></div>
+    </div>
+    <div class="form-row">
+      <div><label>Data access rules (one per line)</label>
+        <textarea name="data_access" rows="4">{{ values.data_access|join('\n') }}</textarea></div>
+      <div><label>Scheduling restrictions (one per line)</label>
+        <textarea name="scheduling" rows="4">{{ values.scheduling|join('\n') }}</textarea></div>
+    </div>
+    <div class="form-row">
+      <div><label>Approval rules (one per line)</label>
+        <textarea name="approval_rules" rows="4">{{ values.approval_rules|join('\n') }}</textarea></div>
+      <div><label>Export restrictions (one per line)</label>
+        <textarea name="export_restrictions" rows="4">{{ values.export_restrictions|join('\n') }}</textarea></div>
+    </div>
+    <label>Risk thresholds (one `key: integer` per line)</label>
+    <textarea name="risk_thresholds" rows="3">{{ values.risk_thresholds|join('\n') }}</textarea>
+
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn btn-secondary" name="action" value="preview">Preview Markdown</button>
+      <button class="btn" name="action" value="save">Generate, Validate &amp; Save Version</button>
+    </div>
+  </form>
+</div>
+
+{% if parsed %}
+<div class="panel">
+  <h2>Validation Result</h2>
+  {% if parsed.errors %}
+  <div class="flash danger">{% if saved_version %}The generated policy was saved as a draft. {% else %}Preview only — nothing was saved. {% endif %}Fix these errors before publishing.</div>
+  <ul>{% for error in parsed.errors %}<li class="check-fail">{{ error }}</li>{% endfor %}</ul>
+  {% else %}
+  <div class="flash success">Generated policy is valid{% if saved_version %}: version {{ saved_version.version }}{% endif %}. Publish it from the version page to activate it.</div>
+  {% if saved_version %}<a class="btn btn-sm" href="{{ url_for('policy.view', version_id=saved_version.id) }}">Open version</a>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+{% if generated %}
+<div class="panel">
+  <h2>Generated Markdown Preview</h2>
+  <p class="muted">This is the exact Markdown stored in <code>PolicyVersion.content</code>.</p>
+  <pre style="max-height:600px;overflow:auto">{{ generated }}</pre>
+  {% if saved_version %}<a class="btn btn-secondary btn-sm" href="{{ url_for('policy.edit') }}">Open advanced Markdown editor</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

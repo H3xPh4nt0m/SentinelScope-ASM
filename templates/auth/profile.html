@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}My Profile — {{ app_name }}{% endblock %}
+{% block heading %}My Profile{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Account Information</h2>
+    <dl class="kv">
+      <dt>Username</dt><dd class="mono">{{ current_user.username }}</dd>
+      <dt>Platform role</dt><dd>{{ 'Platform Administrator' if current_user.is_platform_admin else 'Organization user' }}</dd>
+      <dt>Organization role</dt><dd>{{ org_role|capitalize if org_role else 'No organization selected' }}</dd>
+      <dt>Account status</dt><dd>{{ 'Active' if current_user.is_active_user else 'Disabled' }}</dd>
+      <dt>Last login</dt><dd>{{ current_user.last_login_at.strftime('%Y-%m-%d %H:%M') if current_user.last_login_at else '—' }}</dd>
+    </dl>
+    <p class="muted" style="font-size:12px">Username, platform status, organization memberships, roles, permissions, and account status are managed by a Platform Administrator.</p>
+  </div>
+  <div class="panel">
+    <h2>Update Email</h2>
+    <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="email">
+      <label>Email</label>
+      <input type="email" name="email" value="{{ current_user.email }}" required>
+      <div style="margin-top:10px"><button class="btn">Save email</button></div>
+    </form>
+  </div>
+</div>
+<div class="panel" style="max-width:700px">
+  <h2>Change Password</h2>
+  <p class="muted">Your current password is required. New passwords must be at least 10 characters and contain letters and digits.</p>
+  <form method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="password">
+    <label>Current password</label><input type="password" name="current_password" required autocomplete="current-password">
+    <label>New password</label><input type="password" name="new_password" required autocomplete="new-password">
+    <label>Confirm new password</label><input type="password" name="confirm_password" required autocomplete="new-password">
+    <div style="margin-top:10px"><button class="btn">Change password</button></div>
+  </form>
+</div>
+{% endblock %}

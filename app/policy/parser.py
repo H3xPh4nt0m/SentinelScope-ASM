@@ -75,7 +75,10 @@ def parse_policy_markdown(content: str) -> dict:
         "errors": [],
     }
     errors = result["errors"]
-    if not content or not content.strip():
+    if not isinstance(content, str):
+        errors.append("Policy content must be a Markdown string.")
+        return result
+    if not content.strip():
         errors.append("Policy content is empty.")
         return result
 
@@ -150,6 +153,10 @@ def parse_policy_markdown(content: str) -> dict:
         errors.append("Unknown tool(s): " + ", ".join(result["unknown_tools"]))
     if result["unknown_operations"]:
         errors.append("Unknown operation(s): " + ", ".join(result["unknown_operations"]))
+    severities = result["vulnerability_scanning"]["allowed_severities"]
+    invalid_severities = [s for s in severities if s not in {"info", "low", "medium", "high", "critical"}]
+    if invalid_severities:
+        errors.append("Unknown severity value(s): " + ", ".join(sorted(set(invalid_severities))))
     if result["invalid_scope_entries"]:
         errors.append("Invalid scope entries: " + ", ".join(result["invalid_scope_entries"]))
     return result
@@ -178,7 +185,24 @@ def _parse_item(section: str, text: str, lineno: int, result: dict) -> None:
         if text:
             result["restricted_operations"].append(low)
     elif section == "vulnerability_scanning":
-        result["vulnerability_scanning"]["notes"].append(text)
+        if low.startswith("allowed severities:"):
+            value = text.split(":", 1)[1].strip()
+            result["vulnerability_scanning"]["allowed_severities"] = _split_words(value)
+        else:
+            result["vulnerability_scanning"]["notes"].append(text)
+    elif section == "organization":
+        result["errors"].append(f"Line {lineno}: use 'Name: value' under Organization.")
+    elif section == "scope":
+        result["errors"].append(f"Line {lineno}: put scope values under Domains or IP Ranges.")
+    elif section == "risk_thresholds":
+        if ":" not in text:
+            result["errors"].append(f"Line {lineno}: risk threshold must use 'key: integer'.")
+        else:
+            key, value = (part.strip().lower() for part in text.split(":", 1))
+            try:
+                result["risk_thresholds"][key] = int(value)
+            except ValueError:
+                result["errors"].append(f"Line {lineno}: risk threshold '{key}' must be an integer.")
     else:
         # Generic sections hold prose rules
         if text:

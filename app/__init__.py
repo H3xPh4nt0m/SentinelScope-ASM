@@ -53,6 +53,7 @@ def _configure_sqlite_pragmas() -> None:
 
 def _register_blueprints(app: Flask) -> None:
     from app.auth.views import auth_bp
+    from app.routes.profile import profile_bp
     from app.routes.main import main_bp
     from app.routes.assets import assets_bp
     from app.routes.scans import scans_bp
@@ -68,7 +69,7 @@ def _register_blueprints(app: Flask) -> None:
     from app.routes.audit import audit_bp
     from app.routes.api import api_bp
 
-    for bp in (auth_bp, main_bp, assets_bp, scans_bp, vulns_bp, stride_bp, risk_bp,
+    for bp in (auth_bp, profile_bp, main_bp, assets_bp, scans_bp, vulns_bp, stride_bp, risk_bp,
                metrics_bp, monitoring_bp, policy_bp, llm_bp, admin_bp, reports_bp,
                audit_bp, api_bp):
         app.register_blueprint(bp)

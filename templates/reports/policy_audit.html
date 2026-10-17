@@ -6,12 +6,14 @@
   <h2>Policy Versions</h2>
   {% if policy %}
   <table class="tbl">
-    <tr><th>Version</th><th>Status</th><th>Created</th><th>Published</th></tr>
+    <tr><th>Version</th><th>Status</th><th>Author</th><th>Created</th><th>Published</th><th>Published by</th></tr>
     {% for v in versions %}
     <tr><td>v{{ v.version }}</td>
         <td><span class="badge sev-info">{{ v.status }}</span></td>
+        <td class="mono">{{ authors.get(v.author_id, 'Deleted user' if v.author_id else '—') }}</td>
         <td class="muted">{{ v.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td class="muted">{{ v.published_at.strftime('%Y-%m-%d %H:%M') if v.published_at else '—' }}</td></tr>
+        <td class="muted">{{ v.published_at.strftime('%Y-%m-%d %H:%M') if v.published_at else '—' }}</td>
+        <td class="mono">{{ publishers.get(v.id|string, '—') }}</td></tr>
     {% endfor %}
   </table>
   {% else %}<p class="muted">No policy exists for this organization.</p>{% endif %}

@@ -6,9 +6,7 @@
   <div class="panel">
     <h2>Active Policy</h2>
     {% if published %}
-      <p><strong>{{ policy.name }}</strong> — version
-        <span class="badge sev-low">v{{ published.version }}</span>
-        published {{ published.published_at.strftime('%Y-%m-%d %H:%M') if published.published_at }}</p>
+      <p class="muted">A published policy is currently active for this organization.</p>
       <a class="btn btn-secondary btn-sm" href="{{ url_for('policy.view', version_id=published.id) }}">View published content</a>
     {% else %}
       <p class="muted">No published policy. Until a policy is published, <strong>all scanner
@@ -33,7 +31,8 @@
     <h2>Actions</h2>
     <p>
       {% if 'policy:update' in permissions %}
-      <a class="btn" href="{{ url_for('policy.edit') }}">Edit / create new version</a>
+      <a class="btn" href="{{ url_for('policy.builder') }}">Build policy with form</a>
+      <a class="btn btn-secondary" href="{{ url_for('policy.edit') }}">Advanced Markdown editor</a>
       {% endif %}
       {% if 'policy:test' in permissions %}
       <a class="btn btn-secondary" href="{{ url_for('policy.test') }}">Test an action against policy</a>

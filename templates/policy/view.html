@@ -17,6 +17,16 @@
       <dt>Allowed tools</dt><dd>{{ (version.data.allowed_tools or [])|join(', ') or '—' }}</dd>
       <dt>Allowed operations</dt><dd>{{ (version.data.allowed_operations or [])|join(', ') or '—' }}</dd>
       <dt>Restricted operations</dt><dd>{{ (version.data.restricted_operations or [])|join(', ') or '—' }}</dd>
+      {% set vuln = version.data.vulnerability_scanning or {} %}
+      <dt>Allowed severities</dt><dd>{{ (vuln.allowed_severities or [])|join(', ') or '—' }}</dd>
+      <dt>Vulnerability notes</dt><dd>{{ (vuln.notes or [])|join('; ') or '—' }}</dd>
+      <dt>Production rules</dt><dd>{{ (version.data.production_rules or [])|join('; ') or '—' }}</dd>
+      <dt>LLM rules</dt><dd>{{ (version.data.llm_rules or [])|join('; ') or '—' }}</dd>
+      <dt>Data access</dt><dd>{{ (version.data.data_access or [])|join('; ') or '—' }}</dd>
+      <dt>Scheduling</dt><dd>{{ (version.data.scheduling or [])|join('; ') or '—' }}</dd>
+      <dt>Approval rules</dt><dd>{{ (version.data.approval_rules or [])|join('; ') or '—' }}</dd>
+      <dt>Risk thresholds</dt><dd class="mono">{{ (version.data.risk_thresholds or {})|tojson }}</dd>
+      <dt>Export restrictions</dt><dd>{{ (version.data.export_restrictions or [])|join('; ') or '—' }}</dd>
     </dl>
     {% if version.parse_errors %}
     <h2 style="margin-top:14px">Validation Errors</h2>

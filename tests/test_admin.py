@@ -113,3 +113,48 @@ class TestPlatformUserManagement:
         login(client, analyst.username)
         response = client.get("/admin/users")
         assert response.status_code in (302, 403)
+
+    def test_platform_admin_can_edit_organization(self, app, db, org):
+        admin = make_user(db, "org_editor", org, "admin", platform_admin=True)
+        client = app.test_client()
+        token = login(client, admin.username)
+        response = client.post(f"/admin/organizations/{org.id}/update", data={
+            "_csrf_token": token, "name": "Renamed Organization",
+            "description": "updated description",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        db.session.expire_all()
+        from app.models.core import Organization
+        updated = db.session.get(Organization, org.id)
+        assert updated.name == "Renamed Organization"
+        assert updated.description == "updated description"
+
+    def test_platform_admin_can_delete_organization_cascade_preserves_user(self, app, db, org):
+        from app.models.asset import Asset
+        from app.models.core import Organization, OrganizationMembership, User
+        admin = make_user(db, "org_deleter", org, "admin", platform_admin=True)
+        target_org = Organization(name="Disposable Org")
+        db.session.add(target_org)
+        db.session.flush()
+        target_user = User(username="disposable_user", email="disposable@example.test")
+        target_user.set_password("TestPass123!")
+        db.session.add(target_user)
+        db.session.flush()
+        db.session.add(OrganizationMembership(user_id=target_user.id,
+                                              organization_id=target_org.id,
+                                              role="analyst"))
+        asset = Asset(organization_id=target_org.id, asset_type="domain",
+                      name="disposable.example")
+        db.session.add(asset)
+        db.session.commit()
+        target_org_id, target_user_id, asset_id = target_org.id, target_user.id, asset.id
+
+        client = app.test_client()
+        token = login(client, admin.username)
+        response = client.post(f"/admin/organizations/{target_org_id}/delete", data={
+            "_csrf_token": token, "confirm_name": "Disposable Org",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert db.session.get(Organization, target_org_id) is None
+        assert db.session.get(User, target_user_id) is not None
+        assert db.session.get(Asset, asset_id) is None

@@ -189,7 +189,15 @@ tool: view                              settings: view manage
 
 \* read-visibility inside an org only when also a member.
 
-### 3.4 How a permission decision is made (Zero Trust)
+### 3.4 Self-service profile
+
+Use **Profile** in the top-right user box or open `/profile/`. A signed-in user may update
+only their own email address and password. Password changes require the current password
+and the normal password policy. Username, platform-admin status, memberships, roles,
+extra permissions, and active/disabled status remain controlled by Platform Administrators.
+All changes require CSRF protection and are audited without storing passwords.
+
+### 3.5 How a permission decision is made (Zero Trust)
 
 Every request passes **four** checks, in order:
 
@@ -842,7 +850,17 @@ HTML reports print-to-PDF from the browser.
 
 ## 13. Step-by-Step User Journeys
 
-### 13.1 Platform Administrator — first-time setup
+### 13.1 Platform Administrator — organization lifecycle
+
+Go to **Platform Administration → Organizations**. Each organization is a tenant boundary.
+Use **Save changes** to edit its name/description. To delete one, switch away from it,
+enter its exact name in the confirmation field, and click **Delete organization**. This
+permanently cascades that tenant's assets, policies, scans, findings, threats, risk,
+metrics, schedules, alerts, and tenant audit records; users remain but lose that
+membership. The operation is audited at platform level. Use this only for a test or
+retirement workflow after confirming retention requirements.
+
+### 13.2 Platform Administrator — first-time setup
 
 ```
 1. python3 run.py --demo              # save the printed admin password!
@@ -858,11 +876,12 @@ HTML reports print-to-PDF from the browser.
 ### 13.2 Organization Author — write and activate policy
 
 ```
-1. Policies → Edit → write the Markdown policy (scope, tools, operations, rules)
-2. Save & Validate   → fix any reported errors → status "validated"
-3. Open the version → Publish       → it is now the active policy
-4. Policies → Test  → dry-run targets to prove ALLOW/DENY behaves as intended
-5. Later: edit → publish vNext (old auto-archives) or Rollback to any version
+1. Policies → Build policy with form → enter scope, tools, operations, severities, and rules
+2. Review Generated Markdown → Generate, Validate & Save Version
+3. Fix any reported errors → open the version → Publish → it becomes active
+4. Use Advanced Markdown editor when direct text control is needed
+5. Policies → Test → dry-run targets to prove ALLOW/DENY behaves as intended
+6. Later: use the form or advanced editor to create vNext (old auto-archives) or Rollback
 ```
 
 ### 13.3 Security Analyst — assess an asset

@@ -2,31 +2,48 @@
 {% block title %}Organizations — {{ app_name }}{% endblock %}
 {% block heading %}Organizations{% endblock %}
 {% block content %}
-<div class="grid-2">
-  <div class="panel">
-    <h2>Organizations</h2>
-    <table class="tbl">
-      <tr><th>Name</th><th>Description</th><th>Members</th><th>Created</th></tr>
-      {% for o in orgs %}
-      <tr>
-        <td class="mono">{{ o.name }}</td>
-        <td class="muted">{{ o.description }}</td>
-        <td>{{ o.users|length }}</td>
-        <td class="muted">{{ o.created_at.strftime('%Y-%m-%d') }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-  <div class="panel">
-    <h2>Create Organization</h2>
-    <form method="post" action="{{ url_for('admin.create_organization') }}">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <label>Name</label><input name="name" required>
-      <label>Description</label><input name="description">
-      <div style="margin-top:10px"><button class="btn">Create</button></div>
-    </form>
-    <p class="muted" style="margin-top:14px">All assets, scans, findings, policies and metrics
-      are strictly scoped per organization (tenant isolation).</p>
-  </div>
+<div class="panel">
+  <h2>Organization Management</h2>
+  <p class="muted">Organizations are tenant boundaries. Editing changes the display name and description only. Deletion permanently removes the organization's assets, policies, scans, findings, risk, metrics, schedules, alerts, and tenant audit records. Users are preserved but their memberships are removed.</p>
+</div>
+<div class="panel">
+  <h2>Organizations</h2>
+  <table class="tbl">
+    <tr><th>ID</th><th>Profile</th><th>Members</th><th>Created</th><th>Actions</th></tr>
+    {% for o in orgs %}
+    <tr style="vertical-align:top">
+      <td class="mono">{{ o.id }}</td>
+      <td style="min-width:250px">
+        <form method="post" action="{{ url_for('admin.update_organization', organization_id=o.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label>Name</label><input name="name" value="{{ o.name }}" required maxlength="120">
+          <label>Description</label><textarea name="description" rows="2">{{ o.description }}</textarea>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px">Save changes</button>
+        </form>
+      </td>
+      <td>{{ o.users|length }}</td>
+      <td class="muted">{{ o.created_at.strftime('%Y-%m-%d') }}</td>
+      <td style="min-width:240px">
+        <form method="post" action="{{ url_for('admin.delete_organization', organization_id=o.id) }}"
+              onsubmit="return confirm('This permanently deletes all tenant data. Continue?')">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label>Type exact name to delete</label>
+          <input name="confirm_name" placeholder="{{ o.name }}" required>
+          <button class="btn btn-danger btn-sm" style="margin-top:6px">Delete organization</button>
+        </form>
+        {% if current_org_id == o.id %}<p class="muted" style="font-size:11px">Switch organization before deleting this one.</p>{% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No organizations.</td></tr>{% endfor %}
+  </table>
+</div>
+<div class="panel">
+  <h2>Create Organization</h2>
+  <form method="post" action="{{ url_for('admin.create_organization') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <label>Name</label><input name="name" required maxlength="120">
+    <label>Description</label><input name="description">
+    <div style="margin-top:10px"><button class="btn">Create</button></div>
+  </form>
 </div>
 {% endblock %}

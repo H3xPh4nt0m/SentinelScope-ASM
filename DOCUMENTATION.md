@@ -254,6 +254,7 @@ any time via “Switch org”).
 
 | Page (sidebar) | URL | What you do there |
 |---|---|---|
+| **My Profile** | `/profile/` | update your own email or password; username, roles, memberships, and platform status are administrator-managed |
 | **Dashboard** | `/` | org overview: asset/finding counts, org risk score, findings-by-severity bars, highest-risk assets, recent changes, recent alerts |
 | **All Assets** | `/assets/` | searchable/filterable inventory (group, text, risk level, owner, tag); pagination |
 | **Asset detail** | `/assets/<id>` | the heart of the tool: risk score **+ “why is this scored N?”**, criticality/exposure/environment, relationships (graph edges), open vulnerabilities, STRIDE threats, change history, audit history, and edit/delete forms |
@@ -273,7 +274,8 @@ any time via “Switch org”).
 | **KRI** | `/metrics/kri` | 10 risk indicators + STRIDE distribution + trend charts |
 | **Monitoring** | `/monitoring/` | schedules (create/enable/run-now), alerts (acknowledge), change timeline + change-type summary |
 | **Policies** | `/policies/` | active policy, **full version history**, states |
-| **Policy editor** | `/policies/edit` | edit Markdown → save & validate (errors keep it a draft) |
+| **Policy builder** | `/policies/builder` | form-first authoring; generates canonical Markdown, validates, and saves a new version |
+| **Policy editor** | `/policies/edit` | advanced Markdown editor → save & validate (errors keep it a draft) |
 | **Policy version** | `/policies/version/<id>` | content + parsed representation + publish/rollback buttons |
 | **Policy Test** | `/policies/test` | dry-run any target/tool/operation against the active policy — shows **ALLOW/DENY with reasons** (nothing executes) |
 | **LLM Assistant** | `/assistant/` | chat; operational requests become validated structured actions with per-action decision trail |
@@ -281,7 +283,7 @@ any time via “Switch org”).
 | **Audit Logs** | `/audit/` | every decision and action (user, action, resource, result, reason, IP) |
 | **Settings** | `/admin/settings` | LLM connection status + **Test connection**; external tool status |
 | **Users & Memberships** | `/admin/users` | create/edit users, change email/username/platform-admin state, reset passwords, enable/disable, add/remove organization memberships, assign roles and extra permissions, delete accounts with safety guards |
-| **Organizations** | `/admin/organizations` | create organizations (tenant isolation units) |
+| **Organizations** | `/admin/organizations` | create/edit organizations; delete with exact-name confirmation and tenant-data cascade safeguards |
 
 ---
 
@@ -370,7 +372,8 @@ All UI endpoints are session-authenticated; API endpoints too (cookie session �
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
 | GET | `/policies/` | policy:view | active policy + version history |
-| GET/POST | `/policies/edit` | policy:update | editor; save & validate → new draft/validated version |
+| GET/POST | `/policies/builder` | policy:update | form-first builder; generated Markdown, preview, validation, and new version |
+| GET/POST | `/policies/edit` | policy:update | advanced Markdown editor; save & validate → new draft/validated version |
 | GET | `/policies/version/<id>` | policy:view | content + parsed representation |
 | POST | `/policies/version/<id>/publish` | policy:publish | publish (archives previous active) |
 | POST | `/policies/version/<id>/rollback` | policy:publish | republish an archived version |
@@ -403,8 +406,10 @@ All UI endpoints are session-authenticated; API endpoints too (cookie session �
 | POST | `/admin/users/new` | user:create | create user (password policy enforced) |
 | POST | `/admin/users/<id>/update` | user:update | edit profile, platform-admin state, enable/disable, reset password, memberships, roles, validated extra permissions |
 | POST | `/admin/users/<id>/delete` | user:delete | delete account while preserving historical attribution; self/last-admin protected |
-| GET | `/admin/organizations` | organization:view | org list |
-| POST | `/admin/organizations/new` | organization:create | create org |
+| GET | `/admin/organizations` | organization:view | organization list |
+| POST | `/admin/organizations/new` | organization:create | create organization |
+| POST | `/admin/organizations/<id>/update` | organization:update | edit name and description |
+| POST | `/admin/organizations/<id>/delete` | organization:update | permanently delete tenant data after exact-name confirmation |
 | GET | `/admin/settings` | settings:view | LLM status + tool status |
 | POST | `/admin/settings/llm-test` | settings:manage | live LLM connection test |
 

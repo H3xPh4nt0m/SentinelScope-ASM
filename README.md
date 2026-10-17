@@ -183,10 +183,15 @@ LLM_TIMEOUT=60
 - Timeout / invalid credentials / rate limits / malformed responses are handled with
   explicit error messages; the client is isolated in `app/llm/client.py`.
 
-## 10. Policy Markdown format
+## 10. Policy builder and Markdown format
 
-The Organization Author writes a Markdown policy (`policies/organization_policy.md` is
-bundled as an example). Structure:
+The recommended workflow is **Policies → Build policy with form**. The form collects
+scope, tools, operations, severities, and policy rules, then generates the canonical
+Markdown artifact. The generated text is stored in the versioned database record and
+validated by the same parser used by the advanced Markdown editor.
+
+Authors can use **Advanced Markdown editor** when they need direct control over the
+human-readable policy text. Structure:
 
 ```markdown
 # Organization Security Policy

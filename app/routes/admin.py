@@ -283,6 +283,72 @@ def create_organization():
     return redirect(url_for("admin.organizations"))
 
 
+@admin_bp.route("/organizations/<int:organization_id>/update", methods=["POST"])
+@require_perm("organization:update")
+def update_organization(organization_id: int):
+    _require_platform_admin()
+    from app.extensions import db
+    from app.models.core import Organization
+    org = db.session.get(Organization, organization_id)
+    if org is None:
+        from flask import abort
+        abort(404)
+    name = (request.form.get("name") or "").strip()
+    description = (request.form.get("description") or "").strip()
+    if not name or len(name) > 120:
+        flash("Organization name is required and must be at most 120 characters.", "danger")
+        return redirect(url_for("admin.organizations"))
+    duplicate = Organization.query.filter(Organization.name == name,
+                                          Organization.id != org.id).first()
+    if duplicate:
+        flash("An organization with that name already exists.", "danger")
+        return redirect(url_for("admin.organizations"))
+    before = {"name": org.name, "description": org.description}
+    org.name, org.description = name, description
+    db.session.commit()
+    audit(action="organization_update", resource="organization", resource_id=org.id,
+          user=current_user, details={"before": before,
+                                      "after": {"name": name, "description": description}})
+    flash(f"Organization '{name}' updated.", "success")
+    return redirect(url_for("admin.organizations"))
+
+
+@admin_bp.route("/organizations/<int:organization_id>/delete", methods=["POST"])
+@require_perm("organization:update")
+def delete_organization(organization_id: int):
+    _require_platform_admin()
+    from app.extensions import db
+    from app.models.core import Organization
+    from sqlalchemy.exc import IntegrityError
+    org = db.session.get(Organization, organization_id)
+    if org is None:
+        from flask import abort
+        abort(404)
+    if current_org() == org.id:
+        flash("Switch away from this organization before deleting it.", "danger")
+        return redirect(url_for("admin.organizations"))
+    confirmation = (request.form.get("confirm_name") or "").strip()
+    if confirmation != org.name:
+        flash("Type the exact organization name to confirm deletion.", "danger")
+        return redirect(url_for("admin.organizations"))
+    target = {"id": org.id, "name": org.name}
+    try:
+        db.session.delete(org)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Organization could not be deleted; no data was changed.", "danger")
+        audit(action="organization_delete", resource="organization", resource_id=target["id"],
+              user=current_user, result="error", reason="database constraint")
+        return redirect(url_for("admin.organizations"))
+    # Tenant audit rows are cascaded with the organization; retain a platform-level
+    # deletion record after the cascade completes.
+    audit(action="organization_delete", resource="organization", resource_id=target["id"],
+          user=current_user, details={"deleted_organization": target})
+    flash(f"Organization '{target['name']}' and its tenant data were deleted.", "success")
+    return redirect(url_for("admin.organizations"))
+
+
 @admin_bp.route("/settings")
 @require_perm("settings:view")
 def settings():
