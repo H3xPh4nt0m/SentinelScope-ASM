@@ -628,7 +628,7 @@ For a proposed action `(tool, operation, targets, parameters)`:
 | 3 | Restricted operations | **hard deny** | `operation ∉ Restricted Operations` |
 | 4 | Scope | **hard deny** | every target matches: exact domain, `*.wildcard` domain, IPv4 inside a scope CIDR, or CIDR target fully inside a scope CIDR. Scheme/port prefixes are stripped first (`https://host:8443` → `host`) |
 | 5 | Severity policy | **hard deny** | requested scan severities ⊆ `Allowed severities` |
-| 6 | Production / intrusiveness | **approval gate** | active ops (port_scan, service_detection, vulnerability_scan…) on production assets, or aggressive flags, or a restricted-style op ⇒ approval required (manual checkbox / LLM approve-then-revalidate) |
+| 6 | Production / intrusiveness | **active-scan warning** | active ops (port_scan, service_detection, vulnerability_scan…) on production assets, or aggressive flags, or a restricted-style op ⇒ show an active-interaction warning and require explicit confirmation (manual checkbox / LLM approve-then-revalidate) |
 
 Scope-check logic:
 
@@ -649,7 +649,7 @@ a dry run of the exact decision logic scans will face. Two canonical examples:
 
 ```
 Target 203.0.113.20 · nuclei · vulnerability_scan
-→ ALLOW (approval required — active op on production)
+→ ALLOW (warning: active interaction with production target; explicit confirmation required)
 
 Target 198.51.100.80
 → DENY   ✗ Target(s) outside authorized scope: 198.51.100.80
@@ -908,7 +908,7 @@ HTML reports print-to-PDF from the browser.
 | **"database is locked"** | SQLite can't lock on VMware/VirtualBox shares — the DB must be on local disk (`/home/kali/asm_data/asm.db`, preconfigured). Never move it to the share |
 | Every scan denied: "No published organization policy" | Publish one (Policies → Edit → Save → Publish) — fail-closed by design |
 | "outside authorized scope" | Add the target to `## Authorized Scope` and publish a new version |
-| "approval required" | Active/intrusive operations need the approval checkbox (manual) or the Approve button (LLM actions) |
+| "active interaction warning" | Active/intrusive operations show a target-interaction warning and need the approval checkbox (manual) or Approve button (LLM actions) |
 | Job `failed: tool … is not installed` | Install the tool (Scans → Tool Status has hints). Missing tools never run silently |
 | LLM answers "not configured" | Set `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL` in `.env`, restart, test in Settings |
 | LLM test: "returned empty content" | Transient model behavior (auto-retried once); verify the model name |

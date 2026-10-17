@@ -36,7 +36,7 @@
       <p class="{{ 'check-pass' if result.allowed else 'check-fail' }}" style="font-size:18px;font-weight:700">
         {{ 'ALLOW' if result.allowed else 'DENY' }}</p>
       {% if result.requires_approval and result.allowed %}
-      <p class="check-fail">Approval required for this operation.</p>
+      <div class="flash warning">Warning: this operation actively interacts with the target. Confirm that the target is authorized and that active scanning is permitted. Explicit approval will be required before execution.</div>
       {% endif %}
       <h2 style="margin-top:10px">Reasons</h2>
       <ul style="font-size:13px">

@@ -206,7 +206,8 @@ def _validate_and_maybe_execute(user, organization_id: int, action: dict,
     # 5. Approval gate ------------------------------------------------------------
     if decision.requires_approval:
         result["decision"] = "pending_approval"
-        result["reason"] = "Allowed by policy; explicit user approval required before execution"
+        result["reason"] = ("Warning: this operation actively interacts with the target. "
+                             "Confirm authorization; explicit approval is required before execution")
         return result
 
     # Execution ---------------------------------------------------------------------

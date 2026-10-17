@@ -453,8 +453,9 @@ passes the **same** chain, in order:
 2. ACL                    does the user hold the permission in this org context?
 3. Scope                  every target inside the published policy's domains/CIDRs?
 4. Policy                 tool allowed? operation allowed? not restricted? severity rules?
-5. Approval gate          active/intrusive op on production → explicit approval required
-                          (manual: checkbox; LLM: pending → approve → RE-VALIDATED at approval time)
+5. Active-scan warning    active/intrusive op on production → show an active-interaction
+                          warning and require explicit confirmation (manual: checkbox;
+                          LLM: pending → approve → RE-VALIDATED at approval time)
 6. Execution              queued as a job → worker → subprocess argv (no shell) → results
 ```
 

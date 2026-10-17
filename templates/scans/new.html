@@ -38,7 +38,7 @@
       </label>
       <label style="display:inline-flex;align-items:center;gap:6px">
         <input type="checkbox" name="approval" value="1" style="width:auto">
-        I explicitly approve an intrusive/active operation if policy requires approval
+        I confirm this active scan is authorized and approve its interaction with the target
       </label>
       <div style="margin-top:14px"><button class="btn">Validate &amp; Launch</button></div>
     </form>
@@ -55,10 +55,13 @@
       <h2 style="margin-top:12px">ACL</h2>
       <p class="{{ 'check-pass' if preview.acl.allowed else 'check-fail' }}">
         {{ '✓ allowed' if preview.acl.allowed else '✗ ' + preview.acl.reason }}</p>
+      {% if preview.policy.requires_approval and preview.policy.allowed %}
+      <div class="flash warning">Warning: this operation actively interacts with the target. Confirm that the target is authorized and that active scanning is permitted. Explicit approval is still required before launch.</div>
+      {% endif %}
       <h2 style="margin-top:12px">Policy</h2>
       <p class="{{ 'check-pass' if preview.policy.allowed else 'check-fail' }}">
         {{ '✓ allowed' if preview.policy.allowed else '✗ DENIED' }}
-        {% if preview.policy.requires_approval %} — approval required{% endif %}</p>
+        {% if preview.policy.requires_approval %} — active interaction warning{% endif %}</p>
       <ul style="font-size:12px">
         {% for c in preview.policy.checks %}
         <li class="{{ 'check-pass' if c.passed else 'check-fail' }}">{{ c.detail }}</li>

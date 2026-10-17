@@ -90,11 +90,11 @@ def new():
             flash(f"Scan queued (job #{job.id}).", "success")
             return redirect(url_for("scans.job", job_id=job.id))
         if approval_needed:
-            flash("Policy requires explicit approval for this intrusive operation — "
-                  "tick the approval box to proceed.", "warning")
+            flash("Warning: this active operation will interact with the target. "
+                  "Confirm authorization and tick the approval box before launch.", "warning")
         audit(action="scan_create", resource="scan",
               result="denied" if not preview["allowed"] else "blocked",
-              reason="policy requires approval" if approval_needed
+              reason="active interaction requires explicit approval" if approval_needed
               else "policy/ACL validation failed",
               user=_user(), organization_id=org_id,
               details={"operation": operation, "target": target})

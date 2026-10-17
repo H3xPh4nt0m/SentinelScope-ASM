@@ -104,13 +104,13 @@ def evaluate_action(organization_id: int, tool: str, operation: str, targets: li
     if intrusive and (uses_aggressive or _targets_restricted(operation, parsed)):
         decision.requires_approval = True
         decision.add("intrusiveness", True,
-                     "Active/intrusive operation flagged: explicit approval may be required")
+                     "Warning: this active operation will interact with the target; authorization and explicit approval are required")
 
     # 6. Production restriction rule -----------------------------------------
     if _policy_restricts_production_active(parsed) and intrusive:
         decision.requires_approval = True
         decision.add("production_rule", True,
-                     "Production assets allow non-intrusive scans only; approval required")
+                     "Warning: this active scan will interact with a production target; explicit approval is required")
 
     # 7. Vulnerability scanning severity rules --------------------------------
     if operation == "vulnerability_scan":

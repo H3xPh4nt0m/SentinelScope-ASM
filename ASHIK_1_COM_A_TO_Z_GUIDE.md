@@ -1,6 +1,6 @@
 # SentinelScope ASM — A-to-Z Operating Guide
 
-## Scenario: Adding and Assessing `ashik_1.com`
+## Scenario: Adding and Assessing `demo_1.com`
 
 This guide explains the complete workflow after installing SentinelScope ASM, from creating
 an organization and users through policy publication, asset discovery, scanning, findings,
@@ -17,8 +17,8 @@ security testing.
 Collect the following information from the organization:
 
 - Organization name
-- Authorized root domain: `ashik_1.com`
-- Authorized subdomain rule: `*.ashik_1.com` if subdomains are included
+- Authorized root domain: `demo_1.com`
+- Authorized subdomain rule: `*.demo_1.com` if subdomains are included
 - Authorized IP ranges/CIDRs, if network scanning is allowed
 - Asset owners/team names
 - Environment classification: production, staging, development, internal
@@ -258,7 +258,7 @@ returns a resource-not-found response instead of revealing that the foreign reco
 
 ---
 
-## 6. A-to-Z Setup for `ashik_1.com`
+## 6. A-to-Z Setup for `demo_1.com`
 
 ## A — Create the Organization
 
@@ -273,8 +273,8 @@ Organizations → Create Organization
 Example:
 
 ```text
-Name: Ashik Organization
-Description: Authorized attack-surface monitoring workspace for ashik_1.com
+Name: demo Organization
+Description: Authorized attack-surface monitoring workspace for demo_1.com
 ```
 
 Submit the form.
@@ -294,18 +294,18 @@ Create at least:
 
 | Username | Organization role | Responsibility |
 |---|---|---|
-| `ashik_author` | Author | writes and publishes policy |
-| `ashik_admin` | Admin | manages operations and risk |
-| `ashik_analyst` | Analyst | performs discovery and assessment |
+| `demo_author` | Author | writes and publishes policy |
+| `demo_admin` | Admin | manages operations and risk |
+| `demo_analyst` | Analyst | performs discovery and assessment |
 
-Assign each user to **Ashik Organization**.
+Assign each user to **demo Organization**.
 
 Use strong passwords. The application enforces a minimum password policy requiring a
 minimum length plus letters and digits.
 
 ## C — Write the Organization Policy
 
-Log in as `ashik_author`.
+Log in as `demo_author`.
 
 Go to:
 
@@ -316,16 +316,16 @@ Policies → Edit
 Use a policy such as:
 
 ```markdown
-# Ashik Organization Security Policy
+# demo Organization Security Policy
 
 ## Organization
-Name: Ashik Organization
+Name: demo Organization
 
 ## Authorized Scope
 
 ### Domains
-- ashik_1.com
-- *.ashik_1.com
+- demo_1.com
+- *.demo_1.com
 
 ### IP Ranges
 - 192.168.245.0/24
@@ -376,8 +376,8 @@ Name: Ashik Organization
 
 ### Important policy decisions
 
-- `ashik_1.com` is authorized.
-- `*.ashik_1.com` authorizes subdomains.
+- `demo_1.com` is authorized.
+- `*.demo_1.com` authorizes subdomains.
 - The CIDR authorizes only addresses in that network.
 - `zap` is explicitly allowed.
 - `vulnerability_scan` is explicitly allowed.
@@ -410,7 +410,7 @@ Policies → Test
 Test an in-scope domain:
 
 ```text
-Target: ashik_1.com
+Target: demo_1.com
 Tool: nmap
 Operation: port_scan
 ```
@@ -439,7 +439,7 @@ The policy test does not execute a scan. It is a dry run.
 
 ## E — Add the Root Domain Asset
 
-Log in as `ashik_analyst` or `ashik_admin`.
+Log in as `demo_analyst` or `demo_admin`.
 
 Go to:
 
@@ -450,7 +450,7 @@ Assets → Add Asset
 Enter:
 
 ```text
-Name: ashik_1.com
+Name: demo_1.com
 Type: domain
 Criticality: high
 Exposure: internet
@@ -461,7 +461,7 @@ Notes: Authorized root domain for external attack-surface monitoring
 
 Click **Create Asset**.
 
-The backend performs a scope check before saving. Because `ashik_1.com` is in the
+The backend performs a scope check before saving. Because `demo_1.com` is in the
 published policy, the asset is accepted.
 
 ### Asset fields explained
@@ -490,7 +490,7 @@ Select:
 
 ```text
 Operation: subdomain_discovery
-Target: ashik_1.com
+Target: demo_1.com
 ```
 
 The system normally uses Subfinder for this operation. Amass can also be used through
@@ -544,19 +544,19 @@ Open the job detail page to see:
 Discovery results can create:
 
 ```text
-ashik_1.com
-api.ashik_1.com
-admin.ashik_1.com
-www.ashik_1.com
-staging.ashik_1.com
+demo_1.com
+api.demo_1.com
+admin.demo_1.com
+www.demo_1.com
+staging.demo_1.com
 ```
 
 Each discovered asset is correlated with the organization and connected in the graph:
 
 ```text
-ashik_1.com
+demo_1.com
     ↓ resolves_to
-api.ashik_1.com
+api.demo_1.com
     ↓ resolves_to
 IP address
 ```
@@ -582,7 +582,7 @@ Run:
 
 ```text
 Operation: dns_enumeration
-Target: ashik_1.com
+Target: demo_1.com
 ```
 
 DNSx can identify DNS-related records and relationships. Results are stored as asset
@@ -593,7 +593,7 @@ metadata and relationships.
 First select a discovered web asset such as:
 
 ```text
-https://api.ashik_1.com
+https://api.demo_1.com
 ```
 
 Go to:
@@ -601,7 +601,7 @@ Go to:
 ```text
 Scans → New Scan
 Operation: web_probe
-Target: https://api.ashik_1.com
+Target: https://api.demo_1.com
 ```
 
 The logical ASM tool is `httpx`. On Kali, the actual executable is `httpx-toolkit`.
@@ -655,7 +655,7 @@ Go to:
 Scans → New Scan
 Operation: vulnerability_scan
 Vulnerability tool: nuclei
-Target: https://api.ashik_1.com
+Target: https://api.demo_1.com
 Severity: high, critical
 ```
 
@@ -675,7 +675,7 @@ Go to:
 Scans → New Scan
 Operation: vulnerability_scan
 Vulnerability tool: zap
-Target: https://api.ashik_1.com
+Target: https://api.demo_1.com
 ```
 
 ASM runs ZAP approximately as:
@@ -683,7 +683,7 @@ ASM runs ZAP approximately as:
 ```bash
 /usr/share/zaproxy/zap.sh \
   -cmd \
-  -quickurl https://api.ashik_1.com \
+  -quickurl https://api.demo_1.com \
   -quickout <temporary-report>.json \
   -quickprogress
 ```
@@ -862,9 +862,9 @@ The system builds potential graph paths such as:
 ```text
 Internet
    ↓
-ashik_1.com
+demo_1.com
    ↓
-api.ashik_1.com
+api.demo_1.com
    ↓
 API endpoint
    ↓
@@ -923,7 +923,7 @@ Monitoring → New Schedule
 Choose:
 
 ```text
-Name: Ashik daily monitoring
+Name: demo daily monitoring
 Interval: daily
 Enabled: yes
 ```
@@ -983,8 +983,8 @@ LLM Assistant
 Example questions:
 
 ```text
-Show the highest-risk assets for ashik_1.com.
-Why is api.ashik_1.com high risk?
+Show the highest-risk assets for demo_1.com.
+Why is api.demo_1.com high risk?
 Which assets have Information Disclosure threats?
 Show newly exposed assets from the last 7 days.
 ```
@@ -992,7 +992,7 @@ Show newly exposed assets from the last 7 days.
 Example operational request:
 
 ```text
-Run a ZAP baseline scan against https://api.ashik_1.com.
+Run a ZAP baseline scan against https://api.demo_1.com.
 ```
 
 The LLM creates a structured action, but the backend still checks:
@@ -1058,18 +1058,18 @@ Maintain the system by:
 
 ---
 
-# Full Role Scenario for `ashik_1.com`
+# Full Role Scenario for `demo_1.com`
 
 ## Scenario timeline
 
 ```text
-Platform Admin creates Ashik Organization
+Platform Admin creates demo Organization
         ↓
 Platform Admin creates Author, Admin, Analyst users
         ↓
-Author publishes ashik_1.com policy
+Author publishes demo_1.com policy
         ↓
-Analyst adds ashik_1.com as a domain asset
+Analyst adds demo_1.com as a domain asset
         ↓
 Analyst runs passive discovery
         ↓
@@ -1096,7 +1096,7 @@ Admin reviews reports and audit logs
 
 ### Platform Admin
 
-- Creates `Ashik Organization`
+- Creates `demo Organization`
 - Creates the three users
 - Confirms ZAP, Nmap, Nuclei, Amass, and httpx-toolkit availability
 - Tests the LLM connection
@@ -1104,7 +1104,7 @@ Admin reviews reports and audit logs
 
 ### Organization Author
 
-- Defines `ashik_1.com` and `*.ashik_1.com` scope
+- Defines `demo_1.com` and `*.demo_1.com` scope
 - Lists approved tools
 - Prohibits brute force and destructive testing
 - Requires approval for production active scans
@@ -1140,7 +1140,7 @@ Admin reviews reports and audit logs
 
 ```text
 Requested target: 198.51.100.80
-Policy scope: ashik_1.com, *.ashik_1.com, 192.168.245.0/24
+Policy scope: demo_1.com, *.demo_1.com, 192.168.245.0/24
 Result: DENIED
 ```
 
@@ -1178,13 +1178,13 @@ The analyst must explicitly approve it, and the backend rechecks policy before e
 
 # Final Operational Checklist
 
-Before scanning `ashik_1.com`, verify:
+Before scanning `demo_1.com`, verify:
 
 - [ ] Written authorization exists
 - [ ] Organization exists
 - [ ] Users have correct roles
-- [ ] `ashik_1.com` is in published policy scope
-- [ ] `*.ashik_1.com` is included if needed
+- [ ] `demo_1.com` is in published policy scope
+- [ ] `*.demo_1.com` is included if needed
 - [ ] IP ranges are explicitly authorized
 - [ ] Required tools are installed
 - [ ] ZAP is allowed if it will be used
