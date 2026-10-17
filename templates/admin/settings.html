@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Settings — {{ app_name }}{% endblock %}
+{% block heading %}Platform Settings{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>LLM Connection</h2>
+    <dl class="kv">
+      <dt>Configured</dt><dd>{{ '✓ yes' if llm.configured else '✗ no' }}</dd>
+      <dt>Base URL</dt><dd class="mono">{{ llm.base_url or '— not set —' }}</dd>
+      <dt>API key</dt><dd>{{ '✓ present in environment (never displayed)' if llm.api_key_set else '✗ not set' }}</dd>
+      <dt>Model</dt><dd class="mono">{{ llm.model or '— not set —' }}</dd>
+    </dl>
+    <p class="muted" style="font-size:12px">Configure via <span class="mono">.env</span>:
+      LLM_BASE_URL, LLM_API_KEY, LLM_MODEL. The key lives only in the environment — it is
+      never stored in the database or rendered anywhere.</p>
+    {% if 'settings:manage' in permissions %}
+    <form method="post" action="{{ url_for('admin.llm_test') }}" style="margin-top:10px">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm">Test connection</button>
+    </form>
+    {% endif %}
+    {% if llm_test %}
+    <div class="flash {{ 'success' if llm_test.ok else 'danger' }}" style="margin-top:10px">
+      {{ llm_test.message }}</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Security Tool Status</h2>
+    <p><a class="btn btn-secondary btn-sm" href="{{ url_for('admin.settings', refresh=1) }}">Refresh versions</a>
+       {% if refreshed %}<span class="muted" style="margin-left:8px">Refreshed.</span>{% endif %}</p>
+    <table class="tbl">
+      <tr><th>Tool</th><th>Installed</th><th>Version</th></tr>
+      {% for t in tools %}
+      <tr><td class="mono">{{ t.name }}</td>
+          <td>{{ '✓' if t.available else '✗' }}</td>
+          <td class="muted mono">{{ t.version or '—' }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

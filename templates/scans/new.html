@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}New Scan — {{ app_name }}{% endblock %}
+{% block heading %}New Scan{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <p class="muted">Every scan is validated against ACL, organization policy and authorized
+      scope before a tool process is started. Targets outside scope are denied and audited.</p>
+    <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Operation</label>
+      <select name="operation" id="operation">
+        {% for op in operations %}<option value="{{ op }}" {{ 'selected' if form.operation == op }}>{{ op }}</option>{% endfor %}
+      </select>
+      <div id="vulnerability-tool" style="display:{{ 'block' if form.operation == 'vulnerability_scan' else 'none' }}">
+        <label>Vulnerability tool</label>
+        <select name="tool">
+          {% for tool in ['nuclei', 'zap'] %}
+          <option value="{{ tool }}" {{ 'selected' if form.tool == tool }}>{{ tool }}</option>
+          {% endfor %}
+        </select>
+        <p class="muted" style="font-size:11px">ZAP runs an active baseline scan and writes a structured JSON report; approval and policy checks still apply.</p>
+      </div>
+      <label>Target (domain, host or IP within authorized scope)</label>
+      <input name="target" value="{{ form.target }}" required placeholder="e.g. https://example.com">
+      <label>Severity filter (vulnerability scans)</label>
+      <div class="form-row">
+        {% for s in ['low','medium','high','critical'] %}
+        <label style="display:inline-flex;align-items:center;gap:6px">
+          <input type="checkbox" name="severity" value="{{ s }}" style="width:auto"
+                 {{ 'checked' if s in form.severity }}> {{ s }}
+        </label>
+        {% endfor %}
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:6px">
+        <input type="checkbox" name="service_detection" value="1" style="width:auto"
+               {{ 'checked' if form.service_detection }}> Enable service/version detection (nmap -sV)
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:6px">
+        <input type="checkbox" name="approval" value="1" style="width:auto">
+        I explicitly approve an intrusive/active operation if policy requires approval
+      </label>
+      <div style="margin-top:14px"><button class="btn">Validate &amp; Launch</button></div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Validation Preview (last submission)</h2>
+    {% if preview %}
+      <dl class="kv">
+        <dt>Tool</dt><dd class="mono">{{ preview.tool }}</dd>
+        <dt>Operation</dt><dd>{{ preview.operation }}</dd>
+        <dt>Target</dt><dd class="mono">{{ preview.target or '—' }}</dd>
+      </dl>
+      <h2 style="margin-top:12px">ACL</h2>
+      <p class="{{ 'check-pass' if preview.acl.allowed else 'check-fail' }}">
+        {{ '✓ allowed' if preview.acl.allowed else '✗ ' + preview.acl.reason }}</p>
+      <h2 style="margin-top:12px">Policy</h2>
+      <p class="{{ 'check-pass' if preview.policy.allowed else 'check-fail' }}">
+        {{ '✓ allowed' if preview.policy.allowed else '✗ DENIED' }}
+        {% if preview.policy.requires_approval %} — approval required{% endif %}</p>
+      <ul style="font-size:12px">
+        {% for c in preview.policy.checks %}
+        <li class="{{ 'check-pass' if c.passed else 'check-fail' }}">{{ c.detail }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Submit the form to see the ACL/policy decision trail.</p>
+    {% endif %}
+  </div>
+</div>
+<script>
+const operationSelect = document.getElementById('operation');
+const vulnTool = document.getElementById('vulnerability-tool');
+if (operationSelect && vulnTool) {
+  operationSelect.addEventListener('change', () => {
+    vulnTool.style.display = operationSelect.value === 'vulnerability_scan' ? 'block' : 'none';
+  });
+}
+</script>
+{% endblock %}

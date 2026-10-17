@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Monitoring — {{ app_name }}{% endblock %}
+{% block heading %}Monitoring, Changes &amp; Alerts{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Monitoring Schedules</h2>
+    <table class="tbl">
+      <tr><th>Name</th><th>Interval</th><th>Enabled</th><th>Last run</th><th></th></tr>
+      {% for s in schedules %}
+      <tr>
+        <td>{{ s.name }}</td><td>{{ s.interval }}</td>
+        <td><span class="badge {{ 'sev-low' if s.enabled else 'sev-info' }}">{{ 'on' if s.enabled else 'off' }}</span></td>
+        <td class="muted">{{ s.last_run_at.strftime('%b %d %H:%M') if s.last_run_at else 'never' }}</td>
+        <td style="white-space:nowrap">
+          {% if 'monitoring:manage' in permissions %}
+          <form method="post" action="{{ url_for('monitoring.toggle_schedule', schedule_id=s.id) }}" style="display:inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-secondary btn-sm">{{ 'Disable' if s.enabled else 'Enable' }}</button>
+          </form>
+          <form method="post" action="{{ url_for('monitoring.run_schedule', schedule_id=s.id) }}" style="display:inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm">Run now</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="5" class="muted">No schedules.</td></tr>{% endfor %}
+    </table>
+    {% if 'monitoring:manage' in permissions %}
+    <h2 style="margin-top:14px">New Schedule</h2>
+    <form method="post" action="{{ url_for('monitoring.new_schedule') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Name</label><input name="name" required>
+      <label>Interval</label>
+      <select name="interval">
+        {% for iv in intervals %}<option value="{{ iv }}">{{ iv }}</option>{% endfor %}
+      </select>
+      <label style="display:inline-flex;align-items:center;gap:6px">
+        <input type="checkbox" name="enabled" value="1" style="width:auto" checked> Enable immediately
+      </label>
+      <div style="margin-top:10px"><button class="btn">Create</button></div>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Alerts</h2>
+    <table class="tbl">
+      <tr><th>Sev</th><th>Title</th><th>When</th><th>Ack</th></tr>
+      {% for a in alerts %}
+      <tr>
+        <td><span class="badge {{ a.severity|sev_class }}">{{ a.severity }}</span></td>
+        <td>{{ a.title }}<div class="muted" style="font-size:11px">{{ a.message }}</div></td>
+        <td class="muted">{{ a.created_at.strftime('%b %d %H:%M') }}</td>
+        <td>{% if a.acknowledged %}<span class="badge sev-low">✓</span>
+            {% elif 'alert:update' in permissions %}
+            <button class="btn btn-secondary btn-sm" onclick="ackAlert({{ a.id }}, this)">ack</button>
+            {% endif %}</td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="muted">No alerts.</td></tr>{% endfor %}
+    </table>
+    <h2 style="margin-top:14px">Change Summary</h2>
+    {% for ctype, count in change_counts.items() %}
+    <div class="bar-row">
+      <div class="bar-label"><span class="badge sev-info">{{ ctype }}</span></div>
+      <div class="muted">{{ count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Change Timeline</h2>
+  <table class="tbl">
+    <tr><th>Detected</th><th>Type</th><th>Description</th></tr>
+    {% for c in changes %}
+    <tr><td class="muted">{{ c.detected_at.strftime('%b %d %H:%M') }}</td>
+        <td><span class="badge sev-info">{{ c.change_type }}</span></td>
+        <td>{{ c.description }}</td></tr>
+    {% else %}<tr><td colspan="3" class="muted">No changes recorded yet.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<script>
+async function ackAlert(id, btn) {
+  const resp = await fetch("{{ url_for('monitoring.ack_alert', alert_id=0) }}".replace('/0', '/' + id),
+    { method: 'POST', headers: {'X-CSRF-Token': '{{ csrf_token() }}'} });
+  if (resp.ok) { btn.textContent = '✓'; btn.disabled = true; }
+}
+</script>
+{% endblock %}

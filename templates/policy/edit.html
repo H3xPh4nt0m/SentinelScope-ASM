@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Edit Policy — {{ app_name }}{% endblock %}
+{% block heading %}Edit Organization Policy{% endblock %}
+{% block content %}
+<div class="panel">
+  <p class="muted">Markdown policy. On save the platform parses and validates it; a policy
+    with errors is stored as <strong>draft</strong> and cannot be published. Publishing is a
+    separate step (never automatic).</p>
+  <form method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <textarea name="content" rows="24" style="min-height:420px">{{ latest.content if latest else '' }}</textarea>
+    <div style="margin-top:10px"><button class="btn">Save &amp; Validate</button></div>
+  </form>
+</div>
+{% endblock %}

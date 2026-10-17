@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Organizations — {{ app_name }}{% endblock %}
+{% block heading %}Organizations{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Organizations</h2>
+    <table class="tbl">
+      <tr><th>Name</th><th>Description</th><th>Members</th><th>Created</th></tr>
+      {% for o in orgs %}
+      <tr>
+        <td class="mono">{{ o.name }}</td>
+        <td class="muted">{{ o.description }}</td>
+        <td>{{ o.users|length }}</td>
+        <td class="muted">{{ o.created_at.strftime('%Y-%m-%d') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Create Organization</h2>
+    <form method="post" action="{{ url_for('admin.create_organization') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Name</label><input name="name" required>
+      <label>Description</label><input name="description">
+      <div style="margin-top:10px"><button class="btn">Create</button></div>
+    </form>
+    <p class="muted" style="margin-top:14px">All assets, scans, findings, policies and metrics
+      are strictly scoped per organization (tenant isolation).</p>
+  </div>
+</div>
+{% endblock %}

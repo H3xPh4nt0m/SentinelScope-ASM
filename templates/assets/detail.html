@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.display_name }} — {{ app_name }}{% endblock %}
+{% block heading %}<span class="mono">{{ asset.display_name }}</span>{% endblock %}
+{% block content %}
+<div class="cards">
+  <div class="card"><div class="card-label">Risk Score</div>
+    <div class="card-value {{ latest_risk.score|score_class if latest_risk else '' }}">{{ latest_risk.score if latest_risk else asset.risk_score or '—' }}<span style="font-size:13px;color:var(--text-dim)">/100</span></div>
+  </div>
+  <div class="card"><div class="card-label">Criticality</div><div class="card-value" style="font-size:18px">{{ asset.criticality }}</div></div>
+  <div class="card"><div class="card-label">Exposure</div><div class="card-value" style="font-size:18px">{{ asset.exposure }}</div></div>
+  <div class="card"><div class="card-label">Environment</div><div class="card-value" style="font-size:18px">{{ asset.environment }}</div></div>
+  <div class="card"><div class="card-label">Type</div><div class="card-value" style="font-size:18px">{{ asset.asset_type }}</div></div>
+</div>
+
+{% if latest_risk %}
+<div class="panel">
+  <h2>Why is this asset scored {{ latest_risk.score }}?</h2>
+  <pre>{{ latest_risk.explanation }}</pre>
+  <p class="muted">Calculated {{ latest_risk.calculated_at.strftime('%Y-%m-%d %H:%M') }} — deterministic backend engine; the LLM never sets scores.</p>
+</div>
+{% endif %}
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Overview</h2>
+    <dl class="kv">
+      <dt>Hostname</dt><dd class="mono">{{ asset.hostname or '—' }}</dd>
+      <dt>IP</dt><dd class="mono">{{ asset.ip_address or '—' }}</dd>
+      <dt>Port</dt><dd>{{ asset.port or '—' }}</dd>
+      <dt>Owner</dt><dd>{{ asset.owner or '—' }}</dd>
+      <dt>Status</dt><dd>{{ asset.status }}</dd>
+      <dt>First seen</dt><dd>{{ asset.first_seen.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>Last seen</dt><dd>{{ asset.last_seen.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>Notes</dt><dd>{{ asset.notes or '—' }}</dd>
+    </dl>
+    {% if asset.details %}<h2 style="margin-top:14px">Details</h2>
+    <pre>{{ asset.details|tojson(indent=2) }}</pre>{% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Relationships (asset graph)</h2>
+    <table class="tbl">
+      <tr><th>Direction</th><th>Kind</th><th>Asset</th></tr>
+      {% for kind, other in outgoing %}
+      <tr><td>→</td><td><span class="badge sev-info">{{ kind }}</span></td>
+          <td><a href="{{ url_for('assets.detail', asset_id=other.id) }}" class="mono">{{ other.display_name }}</a></td></tr>
+      {% endfor %}
+      {% for kind, other in incoming %}
+      <tr><td>←</td><td><span class="badge sev-info">{{ kind }}</span></td>
+          <td><a href="{{ url_for('assets.detail', asset_id=other.id) }}" class="mono">{{ other.display_name }}</a></td></tr>
+      {% endfor %}
+      {% if not outgoing and not incoming %}<tr><td colspan="3" class="muted">No relationships.</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Open Vulnerabilities ({{ asset.findings|selectattr('status','equalto','open')|list|length }})</h2>
+  <table class="tbl">
+    <tr><th>Severity</th><th>Title</th><th>Source</th><th>CVE</th><th>Last seen</th></tr>
+    {% for f in asset.findings if f.status == 'open' %}
+    <tr><td><span class="badge {{ f.severity|sev_class }}">{{ f.severity }}</span></td>
+        <td><a href="{{ url_for('vulns.detail', finding_id=f.id) }}">{{ f.title }}</a></td>
+        <td>{{ f.source }}</td><td class="mono">{{ f.cve or '—' }}</td>
+        <td class="muted">{{ f.last_seen.strftime('%Y-%m-%d') }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No open findings.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>STRIDE Threats</h2>
+  <table class="tbl">
+    <tr><th>Category</th><th>Title</th><th>Severity</th><th>Confidence</th><th>Status</th></tr>
+    {% for t in asset.threats %}
+    <tr><td><span class="badge sev-info">{{ t.category_code }} — {{ t.category_name }}</span></td>
+        <td><a href="{{ url_for('stride.threat', threat_id=t.id) }}">{{ t.title }}</a></td>
+        <td><span class="badge {{ t.severity|sev_class }}">{{ t.severity }}</span></td>
+        <td>{{ t.confidence }}</td><td>{{ t.status }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No threats generated for this asset.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Change History</h2>
+    <table class="tbl">
+      <tr><th>When</th><th>Type</th><th>Description</th></tr>
+      {% for c in changes %}
+      <tr><td class="muted">{{ c.detected_at.strftime('%b %d %H:%M') }}</td>
+          <td><span class="badge sev-info">{{ c.change_type }}</span></td><td>{{ c.description }}</td></tr>
+      {% else %}<tr><td colspan="3" class="muted">No changes recorded.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Audit History</h2>
+    <table class="tbl">
+      <tr><th>When</th><th>Action</th><th>Result</th><th>By</th></tr>
+      {% for e in audits %}
+      <tr><td class="muted">{{ e.created_at.strftime('%b %d %H:%M') }}</td><td>{{ e.action }}</td>
+          <td>{{ e.result }}</td><td>{{ e.username }}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">No audit entries.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+{% if 'asset:update' in permissions or 'asset:delete' in permissions %}
+<div class="panel">
+  <h2>Manage Asset</h2>
+  {% if 'asset:update' in permissions %}
+  <form method="post" action="{{ url_for('assets.update', asset_id=asset.id) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div><label>Criticality</label>
+        <select name="criticality">
+          {% for c in ['low','medium','high','critical'] %}
+          <option value="{{ c }}" {{ 'selected' if asset.criticality == c }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Exposure</label>
+        <select name="exposure">
+          {% for e in ['internal','restricted','internet'] %}
+          <option value="{{ e }}" {{ 'selected' if asset.exposure == e }}>{{ e }}</option>{% endfor %}
+        </select></div>
+      <div><label>Status</label>
+        <select name="status">
+          {% for s in ['active','removed','unmanaged'] %}
+          <option value="{{ s }}" {{ 'selected' if asset.status == s }}>{{ s }}</option>{% endfor %}
+        </select></div>
+      <div><label>Owner</label><input name="owner" value="{{ asset.owner }}"></div>
+    </div>
+    <label>Notes</label><textarea name="notes" rows="2">{{ asset.notes }}</textarea>
+    <div style="margin-top:10px"><button class="btn">Save</button></div>
+  </form>
+  {% endif %}
+  {% if 'asset:delete' in permissions %}
+  <form method="post" action="{{ url_for('assets.delete', asset_id=asset.id) }}"
+        onsubmit="return confirm('Delete this asset and all linked records?')"
+        style="margin-top:12px">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-danger btn-sm">Delete asset</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

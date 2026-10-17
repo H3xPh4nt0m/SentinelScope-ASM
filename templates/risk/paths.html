@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Attack Paths — {{ app_name }}{% endblock %}
+{% block heading %}Attack Paths{% endblock %}
+{% block content %}
+<div class="panel">
+  <p class="muted">Inferred graph walks from internet-exposed entry points toward
+    high-value targets. Every path is a <strong>Potential Attack Path</strong> — not a
+    confirmed compromise.</p>
+  <table class="tbl">
+    <tr><th>Score</th><th>Path</th><th>Entry</th><th>Type</th><th></th></tr>
+    {% for p in pagination.items %}
+    <tr>
+      <td><span class="badge {{ p.risk_score|score_class }}">{{ p.risk_score }}</span></td>
+      <td>{{ p.title|truncate(80) }}</td>
+      <td class="mono muted">{{ p.entry_asset.display_name if p.entry_asset }}</td>
+      <td>{{ p.path_type }}</td>
+      <td><a href="{{ url_for('risk.path_detail', path_id=p.id) }}">view →</a></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No attack paths. Run the risk engine to build the graph.</td></tr>{% endfor %}
+  </table>
+  <div class="pagination">
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}">‹ prev</a>{% endif %}
+    <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num) }}">next ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

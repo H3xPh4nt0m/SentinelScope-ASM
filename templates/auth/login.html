@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Login — {{ app_name }}{% endblock %}
+{% block body %}
+<div style="max-width:380px;margin:10vh auto;">
+  <div class="panel">
+    <h2 style="border:none">{{ app_name }}</h2>
+    <p class="muted">Authorized organizational security assessment platform.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Username</label>
+      <input name="username" autofocus autocomplete="username" required>
+      <label>Password</label>
+      <input name="password" type="password" autocomplete="current-password" required>
+      <div style="margin-top:14px">
+        <button class="btn" style="width:100%">Log in</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

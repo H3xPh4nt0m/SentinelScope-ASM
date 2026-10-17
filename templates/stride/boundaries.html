@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Trust Boundaries — {{ app_name }}{% endblock %}
+{% block heading %}Trust Boundaries{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Defined Boundaries</h2>
+    {% for b in boundaries %}
+    <div style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px">
+      <strong>{{ b.name }}</strong> <span class="muted">{{ b.description }}</span>
+      <table class="tbl" style="margin-top:6px">
+        <tr><th>Side</th><th>Asset</th></tr>
+        {% for m in b.members %}
+        <tr><td><span class="badge {{ 'sev-critical' if m.side == 'outside' else 'sev-low' }}">{{ m.side }}</span></td>
+            <td class="mono">{{ m.asset.display_name }}</td></tr>
+        {% else %}<tr><td colspan="2" class="muted">No members.</td></tr>{% endfor %}
+      </table>
+      {% if 'trust_boundary:manage' in permissions %}
+      <form method="post" style="margin-top:6px" class="form-row">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="boundary_id" value="{{ b.id }}">
+        <input type="hidden" name="action" value="add_member">
+        <select name="asset_id">
+          {% for a in assets %}<option value="{{ a.id }}">{{ a.display_name }}</option>{% endfor %}
+        </select>
+        <select name="side" style="max-width:120px">
+          <option value="outside">outside</option><option value="inside">inside</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" style="max-width:120px">Add</button>
+      </form>
+      <form method="post" style="margin-top:6px">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="boundary_id" value="{{ b.id }}">
+        <input type="hidden" name="action" value="delete">
+        <button class="btn btn-danger btn-sm">Delete boundary</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}<p class="muted">No boundaries defined yet.</p>{% endfor %}
+  </div>
+
+  {% if 'trust_boundary:manage' in permissions %}
+  <div class="panel">
+    <h2>Create Boundary</h2>
+    <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="create">
+      <label>Name</label>
+      <input name="name" placeholder="e.g. Internet → Web Application" required>
+      <label>Description</label>
+      <textarea name="description" rows="2"></textarea>
+      <div style="margin-top:10px"><button class="btn">Create</button></div>
+    </form>
+    <p class="muted" style="margin-top:14px">Trust boundaries tell the STRIDE engine where data
+      crosses between trust zones; cross-boundary flows without audit evidence raise
+      Repudiation threats.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

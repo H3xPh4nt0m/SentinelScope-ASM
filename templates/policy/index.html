@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Policies — {{ app_name }}{% endblock %}
+{% block heading %}Organization Policy{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Active Policy</h2>
+    {% if published %}
+      <p><strong>{{ policy.name }}</strong> — version
+        <span class="badge sev-low">v{{ published.version }}</span>
+        published {{ published.published_at.strftime('%Y-%m-%d %H:%M') if published.published_at }}</p>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('policy.view', version_id=published.id) }}">View published content</a>
+    {% else %}
+      <p class="muted">No published policy. Until a policy is published, <strong>all scanner
+        actions are denied</strong> by the policy engine.</p>
+    {% endif %}
+    <h2 style="margin-top:16px">Version History</h2>
+    <table class="tbl">
+      <tr><th>Version</th><th>Status</th><th>Created</th><th>Author</th><th></th></tr>
+      {% for v in policy.versions %}
+      <tr>
+        <td>v{{ v.version }}</td>
+        <td><span class="badge {{ {'published':'sev-low','archived':'sev-info','draft':'sev-medium','validated':'sev-info'}[v.status] }}">{{ v.status }}</span></td>
+        <td class="muted">{{ v.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="muted">{{ v.author_id or '—' }}</td>
+        <td><a href="{{ url_for('policy.view', version_id=v.id) }}">view →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Actions</h2>
+    <p>
+      {% if 'policy:update' in permissions %}
+      <a class="btn" href="{{ url_for('policy.edit') }}">Edit / create new version</a>
+      {% endif %}
+      {% if 'policy:test' in permissions %}
+      <a class="btn btn-secondary" href="{{ url_for('policy.test') }}">Test an action against policy</a>
+      {% endif %}
+    </p>
+    <h2>Policy states</h2>
+    <p class="muted" style="font-size:12px">draft → validated → published → archived.
+      Only <strong>published</strong> versions control execution. Publishing archives the
+      previous active version; it is never silently replaced.</p>
+  </div>
+</div>
+{% endblock %}

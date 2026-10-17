@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Scan Jobs — {{ app_name }}{% endblock %}
+{% block heading %}Scan Jobs{% endblock %}
+{% block content %}
+<div class="panel">
+  <form method="get" class="filters">
+    <select name="status">
+      <option value="">All statuses</option>
+      {% for s in ['queued','running','completed','failed','cancelled'] %}
+      <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-sm">Filter</button>
+    {% if 'scan:create' in permissions %}
+    <a href="{{ url_for('scans.new') }}" class="btn btn-sm" style="margin-left:auto">+ New Scan</a>
+    {% endif %}
+  </form>
+  <table class="tbl">
+    <tr><th>Job</th><th>Tool</th><th>Operation</th><th>Targets</th><th>Status</th>
+        <th>Source</th><th>Created</th><th></th></tr>
+    {% for j in pagination.items %}
+    <tr>
+      <td>#{{ j.id }}</td>
+      <td class="mono">{{ j.tool }}</td>
+      <td>{{ j.operation }}</td>
+      <td class="mono muted">{{ (j.targets or [])|join(', ')|truncate(50) }}</td>
+      <td><span class="badge {{ {'completed':'sev-low','failed':'sev-critical','running':'sev-medium','queued':'sev-info','cancelled':'sev-info'}[j.status] }}">{{ j.status }}</span></td>
+      <td>{{ j.source }}</td>
+      <td class="muted">{{ j.created_at.strftime('%b %d %H:%M') }}</td>
+      <td><a href="{{ url_for('scans.job', job_id=j.id) }}">view →</a></td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="muted">No scan jobs yet.</td></tr>{% endfor %}
+  </table>
+  <div class="pagination">
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, status=status) }}">‹ prev</a>{% endif %}
+    <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, status=status) }}">next ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

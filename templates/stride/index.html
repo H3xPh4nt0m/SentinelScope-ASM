@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}STRIDE Threat Model — {{ app_name }}{% endblock %}
+{% block heading %}STRIDE Threat Model{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>Threats by Category</h2>
+  <div class="grid-3">
+    {% for d in distribution %}
+    <a href="#" class="card" style="text-decoration:none">
+      <div class="card-label">{{ d.name }}</div>
+      <div class="card-value">{{ d.count }}</div>
+      <div class="card-sub">{{ d.code }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% if 'stride:create' in permissions %}
+  <form method="post" action="{{ url_for('stride.generate') }}" style="margin-top:12px">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm">Run STRIDE engine on all assets</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Recent Threats</h2>
+    <table class="tbl">
+      <tr><th>Category</th><th>Threat</th><th>Severity</th><th>Confidence</th><th>Status</th></tr>
+      {% for t in threats %}
+      <tr>
+        <td><span class="badge sev-info">{{ t.category_code }}</span></td>
+        <td><a href="{{ url_for('stride.threat', threat_id=t.id) }}">{{ t.title|truncate(60) }}</a></td>
+        <td><span class="badge {{ t.severity|sev_class }}">{{ t.severity }}</span></td>
+        <td>{{ t.confidence }}</td>
+        <td><span class="badge sev-info">{{ t.status }}</span></td>
+      </tr>
+      {% else %}<tr><td colspan="5" class="muted">No threats — run the engine above.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Trust Boundaries</h2>
+    {% for b in boundaries %}
+    <div style="margin-bottom:10px">
+      <strong>{{ b.name }}</strong>
+      <div class="muted" style="font-size:12px">{{ b.description }}</div>
+      <div style="font-size:12px;margin-top:4px">
+        {% for m in b.members %}
+        <span class="badge {{ 'sev-critical' if m.side == 'outside' else 'sev-low' }}">
+          {{ m.side }}: {{ m.asset.display_name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}<p class="muted">No trust boundaries defined.</p>{% endfor %}
+    <a href="{{ url_for('stride.boundaries') }}">Manage boundaries →</a>
+  </div>
+</div>
+{% endblock %}

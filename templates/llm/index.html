@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}LLM Assistant — {{ app_name }}{% endblock %}
+{% block heading %}LLM Assistant{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Chat</h2>
+    {% if not llm_state.configured %}
+      <div class="flash warning">LLM is not configured. Set <span class="mono">LLM_BASE_URL</span>,
+        <span class="mono">LLM_API_KEY</span> and <span class="mono">LLM_MODEL</span> in
+        <span class="mono">.env</span> and restart. The API key is never rendered in the UI.</div>
+    {% endif %}
+    <div class="chat-box" id="chat">
+      {% if result %}
+        {% include "llm/_response.html" %}
+      {% else %}
+      <div class="chat-msg chat-llm">
+        Ask about your attack surface, or request an operational action, e.g.:
+        <ul style="font-size:12px;margin:6px 0 0">
+          <li>"Show me the highest-risk internet-facing assets."</li>
+          <li>"Why is api.example.com high risk?"</li>
+          <li>"Run a non-intrusive vulnerability scan on new high-risk assets."</li>
+          <li>"Which assets have Information Disclosure threats?"</li>
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('llm.chat') }}" style="margin-top:10px">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <input name="message" id="msg" placeholder="Ask or instruct…" autocomplete="off" required>
+        <button class="btn" style="max-width:120px">Send</button>
+      </div>
+    </form>
+    <p class="muted" style="font-size:11px;margin-top:8px">The LLM only proposes structured
+      actions; ACL, scope and organization policy are enforced by the backend. External scan
+      data is treated as untrusted and prompt injection is defended against in the system prompt.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Recent Requests</h2>
+    <table class="tbl">
+      <tr><th>When</th><th>Intent</th><th>Status</th><th></th></tr>
+      {% for h in history %}
+      <tr>
+        <td class="muted">{{ h.created_at.strftime('%b %d %H:%M') }}</td>
+        <td>{{ h.intent or '—' }}</td>
+        <td><span class="badge {{ 'sev-low' if h.status == 'completed' else 'sev-critical' }}">{{ h.status }}</span></td>
+        <td class="muted mono" title="{{ h.user_message }}">{{ h.user_message|truncate(30) }}</td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="muted">No assistant history yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

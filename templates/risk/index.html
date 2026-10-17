@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Risk — {{ app_name }}{% endblock %}
+{% block heading %}Holistic Risk{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Organization Risk Score</h2>
+    <div class="score-ring {{ org_score|score_class }}">{{ org_score }} / 100</div>
+    <p class="muted">Weighted mean of asset scores (60%) plus the worst asset (40%).</p>
+    <h2 style="margin-top:12px">Score Trend</h2>
+    {% if trend %}
+    <div class="bar-row" style="align-items:flex-end;height:70px;gap:3px">
+      {% for v in trend %}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+        <div class="bar-fill {{ v|score_class }}" style="width:100%;height: {{ v }}%"></div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="muted" style="font-size:11px">{{ trend|length }} snapshots (newest right)</p>
+    {% else %}<p class="muted">No history yet.</p>{% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Asset Risk Distribution</h2>
+    {% for level in ['critical','high','medium','low'] %}
+    <div class="bar-row">
+      <div class="bar-label"><span class="badge {{ level|sev_class }}">{{ level }}</span></div>
+      <div class="bar-track"><div class="bar-fill {{ level|sev_class }}"
+        style="width: {{ [dist[level] * 8, 100]|min }}%"></div></div>
+      <div class="muted">{{ dist[level] }}</div>
+    </div>
+    {% endfor %}
+    <h2 style="margin-top:14px">Risk by Environment</h2>
+    <table class="tbl">
+      <tr><th>Environment</th><th>Mean risk</th></tr>
+      {% for env, avg in env_risk.items() %}
+      <tr><td>{{ env }}</td><td>{{ '%.0f'|format(avg or 0) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Top Risk Assets</h2>
+    <table class="tbl">
+      <tr><th>Score</th><th>Asset</th><th>Open findings</th><th>Calculated</th></tr>
+      {% for s in top_assets %}
+      <tr><td><span class="badge {{ s.score|score_class }}">{{ s.score }}</span></td>
+          <td><a href="{{ url_for('assets.detail', asset_id=s.asset_id) }}" class="mono">{{ s.asset.display_name if s.asset }}</a></td>
+          <td>{{ s.factors.components.vulnerability.open_findings }}</td>
+          <td class="muted">{{ s.calculated_at.strftime('%b %d %H:%M') }}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">No scores yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Top Attack Paths</h2>
+    <table class="tbl">
+      <tr><th>Score</th><th>Path</th></tr>
+      {% for p in top_paths %}
+      <tr><td><span class="badge {{ p.risk_score|score_class }}">{{ p.risk_score }}</span></td>
+          <td><a href="{{ url_for('risk.path_detail', path_id=p.id) }}">{{ p.title|truncate(70) }}</a></td></tr>
+      {% else %}<tr><td colspan="2" class="muted">No attack paths inferred yet.</td></tr>{% endfor %}
+    </table>
+    <a href="{{ url_for('risk.paths') }}">All attack paths →</a>
+  </div>
+</div>
+
+{% if 'risk:configure' in permissions %}
+<div class="panel">
+  <h2>Recalculate / Configure Weights</h2>
+  <p class="muted">Weights are % of the final score; the engine is deterministic and every
+    point is recorded per asset. Changing weights re-runs scoring and analysis engines.</p>
+  <form method="post" action="{{ url_for('risk.recalculate') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      {% for k, w in weights.items() %}
+      <div><label>{{ k }} ({{ w }}%)</label>
+        <input name="weight_{{ k }}" type="number" min="0" max="100" value="{{ w }}"></div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px"><button class="btn">Recalculate all</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

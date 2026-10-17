@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Job #{{ job.id }} — {{ app_name }}{% endblock %}
+{% block heading %}Scan Job #{{ job.id }} <span class="badge {{ {'completed':'sev-low','failed':'sev-critical','running':'sev-medium','queued':'sev-info','cancelled':'sev-info'}[job.status] }}">{{ job.status }}</span>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Job Details</h2>
+    <dl class="kv">
+      <dt>Tool</dt><dd class="mono">{{ job.tool }} {{ job.tool_version or '' }}</dd>
+      <dt>Operation</dt><dd>{{ job.operation }}</dd>
+      <dt>Source</dt><dd>{{ job.source }}</dd>
+      <dt>Targets</dt><dd class="mono">{{ (job.targets or [])|join(', ') }}</dd>
+      <dt>Parameters</dt><dd><pre style="display:inline-block">{{ job.parameters|tojson }}</pre></dd>
+      <dt>Created</dt><dd>{{ job.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+      <dt>Started</dt><dd>{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') if job.started_at else '—' }}</dd>
+      <dt>Finished</dt><dd>{{ job.finished_at.strftime('%Y-%m-%d %H:%M:%S') if job.finished_at else '—' }}</dd>
+      {% if job.duration_seconds %}<dt>Duration</dt><dd>{{ job.duration_seconds|int }}s</dd>{% endif %}
+      {% if job.error %}<dt>Error</dt><dd><span style="color:var(--red)">{{ job.error }}</span></dd>{% endif %}
+    </dl>
+    <h2 style="margin-top:14px">Command Metadata (argument array — no shell)</h2>
+    <pre>{{ job.command|tojson if job.command else 'captured at execution time' }}</pre>
+  </div>
+  <div class="panel">
+    <h2>Validation Trail</h2>
+    {% if job.validation %}
+      {% if job.validation.policy %}
+      <h2 style="margin-top:4px">Policy (v{{ job.validation.policy.policy_version }})</h2>
+      <ul style="font-size:12px">
+        {% for c in job.validation.policy.checks %}
+        <li class="{{ 'check-pass' if c.passed else 'check-fail' }}">{{ c.detail }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if job.validation.acl %}
+      <h2>ACL</h2>
+      <p class="{{ 'check-pass' if job.validation.acl.allowed else 'check-fail' }}">{{ job.validation.acl.reason }}</p>
+      {% endif %}
+      {% if job.validation.approved is defined %}
+      <h2>Approval</h2>
+      <p>{{ 'explicitly approved by operator' if job.validation.approved else 'not required' }}</p>
+      {% endif %}
+    {% else %}<p class="muted">No validation trail recorded.</p>{% endif %}
+    {% if job.status in ('queued','running') and 'scan:cancel' in permissions %}
+    <form method="post" action="{{ url_for('scans.cancel', job_id=job.id) }}" style="margin-top:12px">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger btn-sm">Cancel job</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Result Summary</h2>
+  {% if job.result_summary %}
+    <dl class="kv">
+      {% for k, v in job.result_summary.items() %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+    </dl>
+  {% else %}<p class="muted">No summary yet.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>Findings Produced ({{ findings|length }})</h2>
+  <table class="tbl">
+    <tr><th>Severity</th><th>Title</th><th>Source</th><th>Asset</th></tr>
+    {% for f in findings %}
+    <tr><td><span class="badge {{ f.severity|sev_class }}">{{ f.severity }}</span></td>
+        <td><a href="{{ url_for('vulns.detail', finding_id=f.id) }}">{{ f.title }}</a></td>
+        <td>{{ f.source }}</td>
+        <td class="mono muted">{{ f.asset.display_name if f.asset }}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">No findings from this job.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

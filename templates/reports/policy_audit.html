@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Policy Audit — {{ app_name }}{% endblock %}
+{% block heading %}Policy Audit Report — {{ org_name }}{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>Policy Versions</h2>
+  {% if policy %}
+  <table class="tbl">
+    <tr><th>Version</th><th>Status</th><th>Created</th><th>Published</th></tr>
+    {% for v in versions %}
+    <tr><td>v{{ v.version }}</td>
+        <td><span class="badge sev-info">{{ v.status }}</span></td>
+        <td class="muted">{{ v.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="muted">{{ v.published_at.strftime('%Y-%m-%d %H:%M') if v.published_at else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">No policy exists for this organization.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>ACL / Policy Decisions (latest {{ decisions|length }})</h2>
+  <table class="tbl">
+    <tr><th>When</th><th>User</th><th>Action</th><th>Resource</th><th>Result</th><th>Reason</th></tr>
+    {% for d in decisions %}
+    <tr>
+      <td class="muted">{{ d.created_at.strftime('%b %d %H:%M') }}</td>
+      <td>{{ d.username }}</td><td class="mono">{{ d.action }}</td>
+      <td>{{ d.resource }} {{ d.resource_id }}</td>
+      <td><span class="badge {{ 'sev-low' if d.result == 'ok' else 'sev-critical' }}">{{ d.result }}</span></td>
+      <td class="muted">{{ d.reason }}</td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">No decision records.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>LLM Actions &amp; Backend Validation (latest {{ llm_actions|length }})</h2>
+  <table class="tbl">
+    <tr><th>When</th><th>Operation</th><th>Decision</th><th>Reason</th><th>Executed</th></tr>
+    {% for a in llm_actions %}
+    <tr>
+      <td class="muted">{{ a.created_at.strftime('%b %d %H:%M') }}</td>
+      <td class="mono">{{ a.action.get('operation','?') }} / {{ a.action.get('tool','?') }}</td>
+      <td><span class="badge {{ 'sev-low' if a.decision == 'allowed' else ('sev-critical' if a.decision == 'denied' else 'sev-medium') }}">{{ a.decision }}</span></td>
+      <td class="muted">{{ a.decision_reason }}</td>
+      <td>{{ a.execution_status }}{% if a.scan_job_id %} (job <a href="{{ url_for('scans.job', job_id=a.scan_job_id) }}">#{{ a.scan_job_id }}</a>){% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No LLM actions recorded.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

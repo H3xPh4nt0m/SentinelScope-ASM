@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ finding.title }} — {{ app_name }}{% endblock %}
+{% block heading %}{{ finding.title }}
+  <span class="badge {{ finding.severity|sev_class }}">{{ finding.severity }}</span>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Finding</h2>
+    <dl class="kv">
+      <dt>Asset</dt><dd><a href="{{ url_for('assets.detail', asset_id=finding.asset_id) }}" class="mono">{{ finding.asset.display_name if finding.asset }}</a></dd>
+      <dt>Source</dt><dd>{{ finding.source }}</dd>
+      <dt>Template ID</dt><dd class="mono">{{ finding.template_id or '—' }}</dd>
+      <dt>CVSS</dt><dd>{{ finding.cvss or '—' }}</dd>
+      <dt>CVE</dt><dd class="mono">{{ finding.cve or '—' }}</dd>
+      <dt>Status</dt><dd><span class="badge sev-info">{{ finding.status }}</span></dd>
+      <dt>First seen</dt><dd>{{ finding.first_seen.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>Last seen</dt><dd>{{ finding.last_seen.strftime('%Y-%m-%d %H:%M') }}</dd>
+      <dt>Correlated sources</dt><dd>{{ finding.sources|join(', ') }}</dd>
+    </dl>
+    <h2 style="margin-top:14px">Description</h2>
+    <p>{{ finding.description or '—' }}</p>
+    <h2>Evidence</h2>
+    <pre>{{ finding.evidence or 'none recorded' }}</pre>
+    <h2>Remediation</h2>
+    <p>{{ finding.remediation or '—' }}</p>
+  </div>
+  <div class="panel">
+    <h2>Deduplication</h2>
+    <p class="muted">Dedup key: <span class="mono">{{ finding.dedup_key }}</span>.
+      The same underlying issue reported by multiple tools is correlated into one key.</p>
+    {% if related %}
+    <table class="tbl">
+      <tr><th>Tool</th><th>Title</th><th>First seen</th></tr>
+      {% for r in related %}
+      <tr><td>{{ r.source }}</td><td>{{ r.title }}</td><td class="muted">{{ r.first_seen.strftime('%Y-%m-%d') }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% if 'vulnerability:update' in permissions %}
+    <h2 style="margin-top:14px">Update Status</h2>
+    <form method="post" action="{{ url_for('vulns.update_status', finding_id=finding.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <select name="status">
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if finding.status == s }}>{{ s }}</option>{% endfor %}
+      </select>
+      <div style="margin-top:10px"><button class="btn btn-sm">Save status</button></div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

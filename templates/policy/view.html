@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Policy v{{ version.version }} — {{ app_name }}{% endblock %}
+{% block heading %}Policy v{{ version.version }}
+  <span class="badge {{ {'published':'sev-low','archived':'sev-info','draft':'sev-medium','validated':'sev-info'}[version.status] }}">{{ version.status }}</span>{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Policy Content</h2>
+    <pre>{{ version.content }}</pre>
+  </div>
+  <div class="panel">
+    <h2>Parsed Representation</h2>
+    <dl class="kv">
+      <dt>Organization</dt><dd>{{ version.data.organization.name if version.data.organization else '—' }}</dd>
+      <dt>Domains</dt><dd>{{ (version.data.scope.domains if version.data.scope else [])|join(', ') or '—' }}</dd>
+      <dt>IP ranges</dt><dd>{{ (version.data.scope.ip_ranges if version.data.scope else [])|join(', ') or '—' }}</dd>
+      <dt>Allowed tools</dt><dd>{{ (version.data.allowed_tools or [])|join(', ') or '—' }}</dd>
+      <dt>Allowed operations</dt><dd>{{ (version.data.allowed_operations or [])|join(', ') or '—' }}</dd>
+      <dt>Restricted operations</dt><dd>{{ (version.data.restricted_operations or [])|join(', ') or '—' }}</dd>
+    </dl>
+    {% if version.parse_errors %}
+    <h2 style="margin-top:14px">Validation Errors</h2>
+    <ul>{% for e in version.parse_errors %}<li class="check-fail">{{ e }}</li>{% endfor %}</ul>
+    {% endif %}
+    <h2 style="margin-top:14px">Actions</h2>
+    {% if 'policy:publish' in permissions and version.status in ('draft','validated') %}
+    <form method="post" action="{{ url_for('policy.publish', version_id=version.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn">Publish as active policy</button>
+    </form>
+    {% endif %}
+    {% if 'policy:publish' in permissions and version.status == 'archived' %}
+    <form method="post" action="{{ url_for('policy.rollback', version_id=version.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-secondary">Roll back to this version</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}400 — {{ app_name }}{% endblock %}
+{% block heading %}Bad Request{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>400 — Bad Request</h2>
+  <p>{{ detail or "The request could not be processed." }}</p>
+  <p class="muted">If this mentions CSRF, the form token expired — reload the page and try again.</p>
+  <a class="btn btn-secondary" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+</div>
+{% endblock %}

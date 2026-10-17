@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Assets — {{ app_name }}{% endblock %}
+{% block heading %}Asset Inventory{% endblock %}
+{% block content %}
+<div class="panel">
+  <form method="get" class="filters">
+    <select name="group">
+      {% for g, label in [('all','All'),('domains','Domains'),('ips','IPs'),('services','Services'),
+                          ('webapps','Web Apps'),('apis','APIs/Endpoints'),('technologies','Technologies')] %}
+      <option value="{{ g }}" {{ 'selected' if group == g }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input name="q" value="{{ q }}" placeholder="Search name / host / IP">
+    <select name="severity">
+      <option value="">Any risk</option>
+      {% for s in ['critical','high','medium','low'] %}
+      <option value="{{ s }}" {{ 'selected' if severity == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <input name="owner" value="{{ owner }}" placeholder="Owner" style="width:120px">
+    <input name="tag" value="{{ tag }}" placeholder="Tag" style="width:100px">
+    <button class="btn btn-sm">Filter</button>
+    {% if 'asset:create' in permissions %}
+    <a href="{{ url_for('assets.create') }}" class="btn btn-sm" style="margin-left:auto">+ Add Asset</a>
+    {% endif %}
+  </form>
+
+  <table class="tbl">
+    <tr><th>Asset</th><th>Type</th><th>Criticality</th><th>Exposure</th><th>Env</th>
+        <th>Owner</th><th>Risk</th><th>Findings</th><th>Last Seen</th></tr>
+    {% for a in pagination.items %}
+    <tr>
+      <td><a href="{{ url_for('assets.detail', asset_id=a.id) }}" class="mono">{{ a.display_name }}</a></td>
+      <td><span class="badge sev-info">{{ a.asset_type }}</span></td>
+      <td>{{ a.criticality }}</td>
+      <td>{{ a.exposure }}</td>
+      <td>{{ a.environment }}</td>
+      <td class="muted">{{ a.owner or '—' }}</td>
+      <td>{% if a.risk_score is not none %}<span class="badge {{ a.risk_score|score_class }}">{{ a.risk_score }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{{ a.findings|selectattr('status','equalto','open')|list|length }}</td>
+      <td class="muted">{{ a.last_seen.strftime('%Y-%m-%d') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" class="muted">No assets match. Run discovery or load the demo dataset (python run.py --demo).</td></tr>
+    {% endfor %}
+  </table>
+
+  <div class="pagination">
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">‹ prev</a>{% endif %}
+    <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">next ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

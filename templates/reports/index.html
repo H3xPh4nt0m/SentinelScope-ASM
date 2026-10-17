@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Reports — {{ app_name }}{% endblock %}
+{% block heading %}Reports{% endblock %}
+{% block content %}
+<div class="grid-3">
+  <div class="panel">
+    <h2>Executive Report</h2>
+    <p class="muted">Organization risk score, major trends, critical assets and findings,
+      KPI/KRI summary, STRIDE overview and recent changes.</p>
+    <a class="btn btn-sm" href="{{ url_for('reports.executive') }}">Open</a>
+  </div>
+  <div class="panel">
+    <h2>Technical Report</h2>
+    <p class="muted">Full asset inventory, open findings with evidence, STRIDE threats and
+      per-asset risk calculations.</p>
+    <a class="btn btn-sm" href="{{ url_for('reports.technical') }}">Open</a>
+  </div>
+  <div class="panel">
+    <h2>Policy Audit Report</h2>
+    <p class="muted">Policy versions, allowed/denied decisions, LLM action history and
+      ACL audit trail.</p>
+    <a class="btn btn-sm" href="{{ url_for('reports.policy_audit') }}">Open</a>
+  </div>
+</div>
+{% if 'report:export' in permissions %}
+<div class="panel">
+  <h2>Exports</h2>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('reports.export_findings_csv') }}">Findings CSV</a>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('reports.export_assets_csv') }}">Assets CSV</a>
+  <span class="muted" style="font-size:12px;margin-left:8px">HTML reports can be printed/saved to PDF from the browser.</span>
+</div>
+{% endif %}
+{% endblock %}

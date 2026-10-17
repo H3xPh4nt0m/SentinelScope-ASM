@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}404 — {{ app_name }}{% endblock %}
+{% block heading %}Not Found{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>404 — Not Found</h2>
+  <p>The requested resource does not exist or you do not have access to it.</p>
+  <a class="btn btn-secondary" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+</div>
+{% endblock %}

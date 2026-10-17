@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ threat.title }} — {{ app_name }}{% endblock %}
+{% block heading %}<span class="badge sev-info">{{ threat.category_name }}</span>
+  {{ threat.title }}{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <h2>Threat</h2>
+    <dl class="kv">
+      <dt>Affected asset</dt><dd><a href="{{ url_for('assets.detail', asset_id=threat.asset_id) }}" class="mono">{{ threat.asset.display_name if threat.asset }}</a></dd>
+      <dt>Category</dt><dd>{{ threat.category_code }} — {{ threat.category_name }}</dd>
+      <dt>Severity</dt><dd><span class="badge {{ threat.severity|sev_class }}">{{ threat.severity }}</span></dd>
+      <dt>Confidence</dt><dd>{{ threat.confidence }}</dd>
+      <dt>Status</dt><dd><span class="badge sev-info">{{ threat.status }}</span></dd>
+      <dt>Engine rule</dt><dd class="mono">{{ threat.threat_key or 'manual' }}</dd>
+      <dt>Updated</dt><dd>{{ threat.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+    </dl>
+    <h2 style="margin-top:14px">Description</h2>
+    <p>{{ threat.description }}</p>
+    <h2>Evidence</h2>
+    <ul>
+      {% for e in threat.evidence or [] %}<li class="mono" style="font-size:12px">{{ e }}</li>{% endfor %}
+    </ul>
+    <h2>Suggested mitigation</h2>
+    <p>{{ threat.mitigation }}</p>
+  </div>
+  <div class="panel">
+    <h2>Assessment</h2>
+    <p class="muted">This threat reflects <strong>potential</strong> exposure identified by the
+      rule engine. It is not a confirmed compromise — validate the evidence before marking it
+      confirmed, or mark mitigated once controls are in place.</p>
+    {% if 'stride:update' in permissions %}
+    <form method="post" action="{{ url_for('stride.threat_status', threat_id=threat.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Status</label>
+      <select name="status">
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if threat.status == s }}>{{ s }}</option>{% endfor %}
+      </select>
+      <div style="margin-top:10px"><button class="btn btn-sm">Update status</button></div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

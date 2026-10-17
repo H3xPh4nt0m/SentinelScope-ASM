@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Technical Report — {{ app_name }}{% endblock %}
+{% block heading %}Technical Report — {{ org_name }}{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>Asset Inventory ({{ assets|length }})</h2>
+  <table class="tbl">
+    <tr><th>Asset</th><th>Type</th><th>IP</th><th>Port</th><th>Criticality</th>
+        <th>Exposure</th><th>Owner</th><th>Risk</th></tr>
+    {% for a in assets %}
+    <tr>
+      <td class="mono">{{ a.display_name }}</td><td>{{ a.asset_type }}</td>
+      <td class="mono">{{ a.ip_address or '—' }}</td><td>{{ a.port or '—' }}</td>
+      <td>{{ a.criticality }}</td><td>{{ a.exposure }}</td>
+      <td class="muted">{{ a.owner or '—' }}</td>
+      <td>{% if a.risk_score is not none %}<span class="badge {{ a.risk_score|score_class }}">{{ a.risk_score }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Open Findings ({{ findings|length }})</h2>
+  <table class="tbl">
+    <tr><th>Severity</th><th>Title</th><th>Asset</th><th>Source</th><th>CVE</th><th>Evidence</th></tr>
+    {% for f in findings %}
+    <tr>
+      <td><span class="badge {{ f.severity|sev_class }}">{{ f.severity }}</span></td>
+      <td>{{ f.title }}</td>
+      <td class="mono muted">{{ f.asset.display_name if f.asset }}</td>
+      <td>{{ f.source }}</td><td class="mono">{{ f.cve or '—' }}</td>
+      <td class="mono muted" style="font-size:11px">{{ f.evidence|truncate(60) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>STRIDE Threats ({{ threats|length }})</h2>
+  <table class="tbl">
+    <tr><th>Category</th><th>Title</th><th>Asset</th><th>Severity</th><th>Confidence</th><th>Status</th></tr>
+    {% for t in threats %}
+    <tr>
+      <td>{{ t.category_code }} {{ t.category_name }}</td>
+      <td>{{ t.title|truncate(60) }}</td>
+      <td class="mono muted">{{ t.asset.display_name if t.asset }}</td>
+      <td><span class="badge {{ t.severity|sev_class }}">{{ t.severity }}</span></td>
+      <td>{{ t.confidence }}</td><td>{{ t.status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Risk Calculation Sample</h2>
+  {% for s in scores.values()|list|slice(3) %}
+  <pre>{{ s.explanation }}</pre>
+  {% endfor %}
+</div>
+{% endblock %}

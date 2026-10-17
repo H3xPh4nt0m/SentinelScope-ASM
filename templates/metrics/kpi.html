@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}KPI — {{ app_name }}{% endblock %}
+{% block heading %}Key Performance Indicators{% endblock %}
+{% block content %}
+<div class="cards">
+  {% for k in kpis %}
+  <div class="card">
+    <div class="card-label">{{ k.key.replace('_', ' ').title() }}</div>
+    <div class="card-value">{{ k.value }}<span style="font-size:13px;color:var(--text-dim)">{{ k.unit }}</span></div>
+    <div class="card-sub">{{ k.formula }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% for k in kpis %}
+<div class="panel">
+  <h2>{{ k.key.replace('_', ' ').title() }}</h2>
+  <dl class="kv">
+    <dt>Value</dt><dd><strong>{{ k.value }} {{ k.unit }}</strong></dd>
+    <dt>Formula</dt><dd class="mono" style="font-size:12px">{{ k.formula }}</dd>
+    {% for key, v in k.items() if key not in ('key','value','unit','formula') %}
+    <dt>{{ key.replace('_',' ') }}</dt><dd>{{ v }}</dd>
+    {% endfor %}
+  </dl>
+</div>
+{% endfor %}
+{% endblock %}

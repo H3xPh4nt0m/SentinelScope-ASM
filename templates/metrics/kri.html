@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}KRI — {{ app_name }}{% endblock %}
+{% block heading %}Key Risk Indicators{% endblock %}
+{% block content %}
+<div class="cards">
+  {% for k in kris if k.key != 'stride_risk_distribution' %}
+  <div class="card">
+    <div class="card-label">{{ k.key.replace('_', ' ').title() }}</div>
+    <div class="card-value {{ 'sev-critical' if k.value and k.key in ('critical_vulnerability_exposure','critical_internet_facing','policy_violations') }}">{{ k.value }}<span style="font-size:13px;color:var(--text-dim)">{{ k.unit }}</span></div>
+    <div class="card-sub">{{ k.formula }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if stride_dist %}
+<div class="panel">
+  <h2>STRIDE Risk Distribution</h2>
+  <div class="form-row" style="gap:6px;flex-wrap:wrap">
+    {% for cat, count in stride_dist.distribution.items() %}
+    <span class="badge sev-info">{{ cat }}: {{ count }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% for key, hist in history.items() if hist %}
+<div class="panel">
+  <h2>{{ key.replace('_',' ').title() }} — trend</h2>
+  <div class="bar-row" style="align-items:flex-end;height:60px;gap:3px">
+    {% for point in hist %}
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+      <div class="bar-fill sev-medium" style="width:100%;height: {{ [point.value, 100]|min }}%"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="muted" style="font-size:11px">{{ hist|length }} snapshots (newest right)</p>
+</div>
+{% endfor %}
+
+{% for k in kris %}
+<div class="panel">
+  <h2>{{ k.key.replace('_',' ').title() }}</h2>
+  <dl class="kv">
+    <dt>Value</dt><dd><strong>{{ k.value }} {{ k.unit }}</strong></dd>
+    <dt>Formula</dt><dd class="mono" style="font-size:12px">{{ k.formula }}</dd>
+    {% for key, v in k.items() if key not in ('key','value','unit','formula','distribution') %}
+    <dt>{{ key.replace('_',' ') }}</dt><dd>{{ v }}</dd>
+    {% endfor %}
+  </dl>
+</div>
+{% endfor %}
+{% endblock %}

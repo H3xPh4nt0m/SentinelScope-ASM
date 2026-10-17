@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Vulnerabilities — {{ app_name }}{% endblock %}
+{% block heading %}Vulnerabilities{% endblock %}
+{% block content %}
+<div class="panel">
+  <form method="get" class="filters">
+    <select name="severity">
+      <option value="">Any severity</option>
+      {% for s in ['critical','high','medium','low','info'] %}
+      <option value="{{ s }}" {{ 'selected' if severity == s }}>{{ s }}</option>{% endfor %}
+    </select>
+    <select name="status">
+      <option value="">Any status</option>
+      {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ s }}</option>{% endfor %}
+    </select>
+    <input name="source" value="{{ source }}" placeholder="Source (nuclei...)" style="width:140px">
+    <input name="q" value="{{ q }}" placeholder="Search title">
+    <button class="btn btn-sm">Filter</button>
+    {% if 'report:export' in permissions %}
+    <a href="{{ url_for('reports.export_findings_csv') }}" class="btn btn-secondary btn-sm" style="margin-left:auto">Export CSV</a>
+    {% endif %}
+  </form>
+  <table class="tbl">
+    <tr><th>Severity</th><th>Title</th><th>Asset</th><th>Source</th><th>CVE</th><th>Status</th><th>Last seen</th></tr>
+    {% for f in pagination.items %}
+    <tr>
+      <td><span class="badge {{ f.severity|sev_class }}">{{ f.severity }}</span></td>
+      <td><a href="{{ url_for('vulns.detail', finding_id=f.id) }}">{{ f.title }}</a></td>
+      <td class="mono"><a href="{{ url_for('assets.detail', asset_id=f.asset_id) }}">{{ f.asset.display_name if f.asset }}</a></td>
+      <td>{{ f.source }}</td>
+      <td class="mono">{{ f.cve or '—' }}</td>
+      <td><span class="badge sev-info">{{ f.status }}</span></td>
+      <td class="muted">{{ f.last_seen.strftime('%Y-%m-%d') }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="muted">No findings match.</td></tr>{% endfor %}
+  </table>
+  <div class="pagination">
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, severity=severity, status=status, source=source, q=q) }}">‹ prev</a>{% endif %}
+    <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, severity=severity, status=status, source=source, q=q) }}">next ›</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

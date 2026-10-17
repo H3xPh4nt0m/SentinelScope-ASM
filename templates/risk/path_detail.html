@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ path.title }} — {{ app_name }}{% endblock %}
+{% block heading %}Potential Attack Path{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>{{ path.title }}</h2>
+  <p><span class="badge {{ path.risk_score|score_class }}">path risk {{ path.risk_score }}/100</span>
+     <span class="muted">— deterministic scoring: exposure, administrative hops, findings</span></p>
+  <h2 style="margin-top:14px">Steps</h2>
+  {% for step in path.steps or [] %}
+  <div style="display:flex;align-items:center;gap:10px;margin:4px 0">
+    <span class="badge sev-info">{{ loop.index }}</span>
+    <a href="{{ url_for('assets.detail', asset_id=step.asset_id) }}" class="mono">{{ step.name }}</a>
+    <span class="badge sev-info">{{ step.type }}</span>
+    <span class="muted" style="font-size:12px">{{ step.why }}</span>
+  </div>
+  {% if not loop.last %}<div style="margin-left:8px;color:var(--text-dim)">↓</div>{% endif %}
+  {% endfor %}
+  <p class="muted" style="margin-top:14px">Entry point:
+    <a href="{{ url_for('assets.detail', asset_id=path.entry_asset_id) }}" class="mono">{{ path.entry_asset.display_name if path.entry_asset }}</a>
+    — Target: <a href="{{ url_for('assets.detail', asset_id=path.target_asset_id) }}" class="mono">{{ path.target_asset.display_name if path.target_asset }}</a></p>
+</div>
+{% endblock %}

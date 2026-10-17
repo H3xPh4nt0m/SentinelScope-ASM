@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Users — {{ app_name }}{% endblock %}
+{% block heading %}Users &amp; Memberships{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>Platform User Management</h2>
+  <p class="muted">Platform Administrators manage account identity and organization membership here.
+    Organization roles and extra grants affect access only inside that organization.
+    Active platform administrators: <strong>{{ active_platform_admins }}</strong>.</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+</div>
+
+<div class="panel">
+  <h2>Users</h2>
+  <table class="tbl">
+    <tr><th>Identity</th><th>Platform role</th><th>Status</th><th>Memberships &amp; grants</th><th>Danger zone</th></tr>
+    {% for u in users %}
+    <tr style="vertical-align:top">
+      <td style="min-width:260px">
+        <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="profile">
+          <label>Username</label><input name="username" value="{{ u.username }}" required>
+          <label>Email</label><input name="email" type="email" value="{{ u.email }}" placeholder="optional">
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px">Save profile</button>
+        </form>
+      </td>
+      <td style="min-width:170px">
+        <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="platform_admin">
+          <input type="hidden" name="is_platform_admin" value="0">
+          <label style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" name="is_platform_admin" value="1" style="width:auto"
+                   {{ 'checked' if u.is_platform_admin }}>
+            Platform administrator
+          </label>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px">Save platform role</button>
+        </form>
+      </td>
+      <td style="min-width:140px">
+        <span class="badge {{ 'sev-low' if u.is_active_user else 'sev-critical' }}">
+          {{ 'active' if u.is_active_user else 'disabled' }}</span>
+        <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" style="margin-top:8px">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="toggle_active">
+          <input type="hidden" name="is_active_user" value="{{ '0' if u.is_active_user else '1' }}">
+          <button class="btn btn-secondary btn-sm" {{ 'disabled' if u.id == current_user.id }}>
+            {{ 'Disable' if u.is_active_user else 'Enable' }}
+          </button>
+        </form>
+      </td>
+      <td style="min-width:430px">
+        {% for m in u.memberships %}
+        <div class="panel" style="padding:10px;margin:0 0 8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>{{ m.organization.name }}</strong>
+            <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}"
+                  onsubmit="return confirm('Remove this organization membership?')">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="remove_membership">
+              <input type="hidden" name="organization_id" value="{{ m.organization_id }}">
+              <button class="btn btn-danger btn-sm">Remove</button>
+            </form>
+          </div>
+          <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="set_membership">
+            <input type="hidden" name="organization_id" value="{{ m.organization_id }}">
+            <label>Organization role</label>
+            <select name="role">
+              {% for role in roles %}<option value="{{ role }}" {{ 'selected' if m.role == role }}>{{ role }}</option>{% endfor %}
+            </select>
+            <details style="margin-top:8px">
+              <summary>Extra permission grants ({{ m.extra_permission_list|length }})</summary>
+              <div style="columns:2;margin-top:8px;font-size:11px">
+                {% for permission in extra_permissions %}
+                <label style="break-inside:avoid;display:block">
+                  <input type="checkbox" name="extra_permission" value="{{ permission }}" style="width:auto"
+                         {{ 'checked' if permission in m.extra_permission_list }}>
+                  {{ permission }}
+                </label>
+                {% endfor %}
+              </div>
+            </details>
+            <button class="btn btn-secondary btn-sm" style="margin-top:8px">Save membership &amp; grants</button>
+          </form>
+        </div>
+        {% else %}
+        <span class="muted">No organization membership</span>
+        {% endfor %}
+        <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" style="margin-top:8px">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="set_membership">
+          <label>Add organization membership</label>
+          <div class="form-row">
+            <select name="organization_id">
+              {% for org_id, name in org_choices %}<option value="{{ org_id }}">{{ name }}</option>{% endfor %}
+            </select>
+            <select name="role">
+              {% for role in roles %}<option value="{{ role }}">{{ role }}</option>{% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px">Add membership</button>
+        </form>
+      </td>
+      <td style="min-width:170px">
+        <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="reset_password">
+          <label>Reset password</label><input name="password" type="password" minlength="10" required>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px">Reset password</button>
+        </form>
+        {% if u.id != current_user.id %}
+        <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+              onsubmit="return confirm('Permanently delete this user? Historical audit records will be anonymized but preserved.')"
+              style="margin-top:14px">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm">Delete user</button>
+        </form>
+        {% else %}<p class="muted" style="font-size:11px">You cannot delete your own account.</p>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No users found.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Create User</h2>
+  <form method="post" action="{{ url_for('admin.create_user') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div><label>Username</label><input name="username" required></div>
+      <div><label>Email</label><input name="email" type="email" required></div>
+      <div><label>Password (min 10 chars, letters + digits)</label><input name="password" type="password" required></div>
+    </div>
+    <div class="form-row">
+      <div><label>Initial organization</label>
+        <select name="organization_id">
+          <option value="">No membership yet</option>
+          {% for org_id, name in org_choices %}<option value="{{ org_id }}">{{ name }}</option>{% endfor %}
+        </select></div>
+      <div><label>Initial organization role</label>
+        <select name="role">{% for role in roles %}<option value="{{ role }}">{{ role }}</option>{% endfor %}</select></div>
+      <div style="display:flex;align-items:end;padding-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="is_platform_admin" value="1" style="width:auto"> Platform administrator</label>
+      </div>
+    </div>
+    <button class="btn">Create user</button>
+  </form>
+</div>
+{% endblock %}

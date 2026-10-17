@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Policy Test — {{ app_name }}{% endblock %}
+{% block heading %}Policy Testing{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="panel">
+    <p class="muted">Test a hypothetical action against the active published policy.
+      Nothing is executed — this is a dry-run of the policy decision point.</p>
+    <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label>Target</label>
+      <input name="target" value="{{ form.target }}" placeholder="e.g. 203.0.113.20" required>
+      <label>Tool</label>
+      <select name="tool">
+        {% for t in ['amass','subfinder','dnsx','nmap','naabu','httpx','nuclei','zap','openvas'] %}
+        <option value="{{ t }}" {{ 'selected' if form.tool == t }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+      <label>Operation</label>
+      <select name="operation">
+        {% for op in ['subdomain_discovery','dns_enumeration','port_scan','service_detection',
+                      'web_probe','vulnerability_scan','passive_recon'] %}
+        <option value="{{ op }}" {{ 'selected' if form.operation == op }}>{{ op }}</option>
+        {% endfor %}
+      </select>
+      <div style="margin-top:12px"><button class="btn">Evaluate</button></div>
+    </form>
+    {% if not published %}
+    <p class="check-fail" style="margin-top:12px">No published policy — every action would be denied.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Decision</h2>
+    {% if result %}
+      <p class="{{ 'check-pass' if result.allowed else 'check-fail' }}" style="font-size:18px;font-weight:700">
+        {{ 'ALLOW' if result.allowed else 'DENY' }}</p>
+      {% if result.requires_approval and result.allowed %}
+      <p class="check-fail">Approval required for this operation.</p>
+      {% endif %}
+      <h2 style="margin-top:10px">Reasons</h2>
+      <ul style="font-size:13px">
+        {% for r in result.reasons %}<li>{{ r }}</li>{% endfor %}
+      </ul>
+      {% if result.policy_version %}<p class="muted">Evaluated against policy v{{ result.policy_version }}.</p>{% endif %}
+    {% else %}
+      <p class="muted">Submit a target to evaluate.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+<div class="chat-msg chat-user">{{ last_message }}</div>
+<div class="chat-msg chat-llm chat-response">
+  {% if result.error %}
+    <p class="check-fail">{{ result.error }}</p>
+  {% else %}
+    {% if result.intent %}<p><strong>Intent:</strong> <span class="mono">{{ result.intent }}</span></p>{% endif %}
+    {% for r in result.results %}
+      <div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin:8px 0;font-size:12px">
+        <p><strong>Proposed action:</strong> {{ r.schema.operation }} via
+          <span class="mono">{{ r.schema.tool_used }}</span></p>
+        <p><strong>Decision:</strong>
+          <span class="{{ 'check-pass' if r.decision == 'allowed' else ('check-fail' if r.decision == 'denied' else 'sev-medium') }}">
+            {{ r.decision }}</span></p>
+        <p class="muted">{{ r.reason }}</p>
+        {% if r.job_id %}<p><a href="{{ url_for('scans.job', job_id=r.job_id) }}">View job #{{ r.job_id }} →</a></p>{% endif %}
+        {% if r.policy and r.policy.checks %}
+        <ul style="font-size:11px">
+          {% for c in r.policy.checks %}<li class="{{ 'check-pass' if c.passed else 'check-fail' }}">{{ c.detail }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+    {% if result.response_text %}<pre>{{ result.response_text }}</pre>{% endif %}
+  {% endif %}
+</div>

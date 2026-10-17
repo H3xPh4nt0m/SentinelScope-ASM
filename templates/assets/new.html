@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Add Asset — {{ app_name }}{% endblock %}
+{% block heading %}Add Asset{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:640px">
+  <p class="muted">Network-identifiable assets (domains, subdomains, IPs) are validated
+    against the published organization policy scope before being accepted.</p>
+  <form method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <label>Name (hostname / IP / URL)</label>
+    <input name="name" required placeholder="e.g. api.example.com or 203.0.113.10">
+    <div class="form-row">
+      <div><label>Type</label>
+        <select name="asset_type">
+          {% for t in asset_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select></div>
+      <div><label>Criticality</label>
+        <select name="criticality">
+          {% for c in criticalities %}<option value="{{ c }}" {{ 'selected' if c == 'medium' }}>{{ c }}</option>{% endfor %}
+        </select></div>
+      <div><label>Exposure</label>
+        <select name="exposure">
+          {% for e in exposures %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div><label>Environment</label><input name="environment" value="production"></div>
+      <div><label>Owner</label><input name="owner" placeholder="team / person"></div>
+    </div>
+    <label>Notes</label><textarea name="notes" rows="3"></textarea>
+    <div style="margin-top:14px"><button class="btn">Create Asset</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+{% block body %}
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('main.dashboard') }}">{{ app_name }}
+      <small>Attack Surface Management</small></a>
+
+    {% set perms = permissions or [] %}
+    <div class="nav-group">
+      <div class="nav-title">Overview</div>
+      <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a>
+      {% if current_user.is_platform_admin %}
+      <div class="nav-title" style="margin-top:10px">Platform Administration</div>
+      <a href="{{ url_for('admin.organizations') }}">Organizations</a>
+      <a href="{{ url_for('admin.users') }}">Users &amp; Memberships</a>
+      <a href="{{ url_for('admin.settings') }}">Platform Settings</a>
+      <a href="{{ url_for('audit.index') }}">Platform Audit Logs</a>
+      {% endif %}
+    </div>
+
+    {% if 'asset:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Assets</div>
+      <a href="{{ url_for('assets.index') }}">All Assets</a>
+      <a href="{{ url_for('assets.index', group='domains') }}">Domains</a>
+      <a href="{{ url_for('assets.index', group='ips') }}">IPs</a>
+      <a href="{{ url_for('assets.index', group='services') }}">Services</a>
+      <a href="{{ url_for('assets.index', group='webapps') }}">Web Applications</a>
+      <a href="{{ url_for('assets.index', group='apis') }}">APIs &amp; Endpoints</a>
+      <a href="{{ url_for('assets.index', group='technologies') }}">Technologies</a>
+    </div>
+    {% endif %}
+
+    {% if 'tool:view' in perms or 'scan:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Discovery &amp; Scans</div>
+      {% if 'scan:create' in perms %}<a href="{{ url_for('scans.new') }}">New Scan</a>{% endif %}
+      <a href="{{ url_for('scans.index') }}">Scan Jobs</a>
+      <a href="{{ url_for('scans.tools') }}">Tool Status</a>
+    </div>
+    {% endif %}
+
+    {% if 'vulnerability:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Security</div>
+      <a href="{{ url_for('vulns.index') }}">Vulnerabilities</a>
+    </div>
+    {% endif %}
+    {% if 'stride:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Threat Model</div>
+      <a href="{{ url_for('stride.index') }}">STRIDE Threats</a>
+      <a href="{{ url_for('stride.boundaries') }}">Trust Boundaries</a>
+      {% if 'attack_path:view' in perms %}<a href="{{ url_for('risk.paths') }}">Attack Paths</a>{% endif %}
+    </div>
+    {% endif %}
+    {% if 'risk:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Risk &amp; Metrics</div>
+      <a href="{{ url_for('risk.index') }}">Risk</a>
+      {% if 'kpi:view' in perms %}<a href="{{ url_for('metrics.kpi') }}">KPI</a>{% endif %}
+      {% if 'kri:view' in perms %}<a href="{{ url_for('metrics.kri') }}">KRI</a>{% endif %}
+    </div>
+    {% endif %}
+    {% if 'monitoring:view' in perms %}
+    <div class="nav-group">
+      <div class="nav-title">Operations</div>
+      <a href="{{ url_for('monitoring.index') }}">Monitoring &amp; Alerts{% if unacked_alerts %} <span class="badge sev-critical">{{ unacked_alerts }}</span>{% endif %}</a>
+      {% if 'report:view' in perms %}<a href="{{ url_for('reports.index') }}">Reports</a>{% endif %}
+      {% if 'policy:view' in perms %}<a href="{{ url_for('policy.index') }}">Policies</a>{% endif %}
+      {% if 'llm:use' in perms %}<a href="{{ url_for('llm.index') }}">LLM Assistant</a>{% endif %}
+      {% if 'audit:view' in perms %}<a href="{{ url_for('audit.index') }}">Audit Logs</a>{% endif %}
+      {% if 'settings:view' in perms %}<a href="{{ url_for('admin.settings') }}">Settings</a>{% endif %}
+    </div>
+    {% endif %}
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1>{% block heading %}{% endblock %}</h1>
+      <div class="user-box">
+        {% if current_user.is_authenticated %}
+          {% if current_user.is_platform_admin %}<span class="badge sev-high">Platform Admin</span>{% endif %}
+          <span>{{ current_user.username }}</span>
+          {% if current_org_id %}
+          <form method="post" action="{{ url_for('auth.select_org') }}" style="display:inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="organization_id" value="">
+          </form>
+          <a href="{{ url_for('auth.select_org') }}" class="btn btn-secondary btn-sm">Switch org</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-secondary btn-sm">Log out</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
+</body>
+</html>
