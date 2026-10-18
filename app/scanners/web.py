@@ -177,7 +177,7 @@ class ZapTool(SecurityTool):
         return ["-cmd", "-quickurl", self._target(parameters), "-quickout", report_path,
                 "-quickprogress"]
 
-    def execute(self, parameters: dict, timeout: int = 900) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 900, on_output=None) -> ToolResult:
         if not self.is_available():
             raise ToolUnavailableError("tool 'zap' is not installed")
         ok, reason = self.validate(parameters)
@@ -188,23 +188,16 @@ class ZapTool(SecurityTool):
             params = dict(parameters)
             params["report_path"] = report_path
             cmd = [self.binary, *self.build_command(params)]
-            try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                                      shell=False, cwd=workdir)
-            except subprocess.TimeoutExpired:
-                return ToolResult(ok=False, timed_out=True,
-                                  stderr=f"timed out after {timeout}s", command=cmd)
-            except OSError as exc:
-                return ToolResult(ok=False, stderr=str(exc), command=cmd)
+            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
             report = ""
             report_file = Path(report_path)
             if report_file.is_file():
                 report = report_file.read_text(encoding="utf-8", errors="replace")
             # A valid report can accompany ZAP's alert exit status (typically 1).
-            return ToolResult(ok=proc.returncode == 0 or bool(report.strip()),
-                              raw_output=report or proc.stdout or "",
-                              stderr=proc.stderr or "", returncode=proc.returncode,
-                              command=cmd)
+            return ToolResult(ok=result.ok or bool(report.strip()),
+                              raw_output=report or result.raw_output,
+                              stderr=result.stderr, returncode=result.returncode,
+                              timed_out=result.timed_out, command=cmd)
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         text = (raw_result or "").strip()

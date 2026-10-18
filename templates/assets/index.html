@@ -25,11 +25,20 @@
     {% endif %}
   </form>
 
+  {% if 'asset:delete' in permissions %}
+  <form method="post" action="{{ url_for('assets.bulk_delete') }}"
+        onsubmit="return confirmBulkDelete(this)">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="confirm" value="">
+    <button class="btn btn-danger btn-sm" type="submit">Delete selected assets</button>
+    <span class="muted" style="font-size:12px;margin-left:8px">Permanent deletion also removes linked findings, relationships, threats, and risk history.</span>
+  {% endif %}
   <table class="tbl">
-    <tr><th>Asset</th><th>Type</th><th>Criticality</th><th>Exposure</th><th>Env</th>
+    <tr>{% if 'asset:delete' in permissions %}<th><input type="checkbox" id="select-all" style="width:auto" title="Select all"></th>{% endif %}<th>Asset</th><th>Type</th><th>Criticality</th><th>Exposure</th><th>Env</th>
         <th>Owner</th><th>Risk</th><th>Findings</th><th>Last Seen</th></tr>
     {% for a in pagination.items %}
     <tr>
+      {% if 'asset:delete' in permissions %}<td><input type="checkbox" name="asset_id" value="{{ a.id }}" class="asset-check" style="width:auto"></td>{% endif %}
       <td><a href="{{ url_for('assets.detail', asset_id=a.id) }}" class="mono">{{ a.display_name }}</a></td>
       <td><span class="badge sev-info">{{ a.asset_type }}</span></td>
       <td>{{ a.criticality }}</td>
@@ -44,6 +53,7 @@
     <tr><td colspan="9" class="muted">No assets match. Run discovery or load the demo dataset (python run.py --demo).</td></tr>
     {% endfor %}
   </table>
+  {% if 'asset:delete' in permissions %}</form>{% endif %}
 
   <div class="pagination">
     {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">‹ prev</a>{% endif %}
@@ -51,4 +61,20 @@
     {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">next ›</a>{% endif %}
   </div>
 </div>
+<script>
+const selectAll = document.getElementById('select-all');
+if (selectAll) {
+  selectAll.addEventListener('change', () => {
+    document.querySelectorAll('.asset-check').forEach((box) => { box.checked = selectAll.checked; });
+  });
+}
+function confirmBulkDelete(form) {
+  const selected = form.querySelectorAll('.asset-check:checked');
+  if (!selected.length) { alert('Select at least one asset.'); return false; }
+  const name = prompt('Type DELETE to permanently remove the selected assets and linked records:');
+  if (name !== 'DELETE') return false;
+  form.querySelector('input[name="confirm"]').value = name;
+  return true;
+}
+</script>
 {% endblock %}

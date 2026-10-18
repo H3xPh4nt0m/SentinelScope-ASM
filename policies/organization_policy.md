@@ -23,6 +23,16 @@ Name: Example Organization
 - nuclei
 - zap
 - openvas
+- katana
+- waybackurls
+- gau
+- dalfox
+- subzy
+- puredns
+- waymore
+- ffuf
+- xingfinger
+- playwright
 
 ## Allowed Operations
 - subdomain_discovery
@@ -32,6 +42,13 @@ Name: Example Organization
 - web_probe
 - vulnerability_scan
 - passive_recon
+- web_crawl
+- url_discovery
+- xss_scan
+- subdomain_takeover
+- fingerprint_identification
+- site_screenshot
+- directory_scan
 
 ## Restricted Operations
 - intrusive_scan

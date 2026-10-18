@@ -50,6 +50,14 @@
 </div>
 
 <div class="panel">
+  <h2>Live Tool Output</h2>
+  <p class="muted">Output is bounded to the latest 200 lines and updates while the job is queued or running.</p>
+  <div class="bar-track" style="height:10px;margin-bottom:10px"><div id="job-progress" class="bar-fill sev-medium" style="width:{{ job.progress or 0 }}%"></div></div>
+  <pre id="job-output" style="height:260px;overflow:auto;background:#070b10;color:#9ee493">{% for line in (job.result_summary or {}).get('output', []) %}{{ line }}
+{% endfor %}</pre>
+</div>
+
+<div class="panel">
   <h2>Result Summary</h2>
   {% if job.result_summary %}
     <dl class="kv">
@@ -70,4 +78,25 @@
     {% else %}<tr><td colspan="4" class="muted">No findings from this job.</td></tr>{% endfor %}
   </table>
 </div>
+<script>
+(() => {
+  const terminal = document.getElementById('job-output');
+  const progress = document.getElementById('job-progress');
+  const terminalStates = ['completed', 'failed', 'cancelled'];
+  async function pollJob() {
+    try {
+      const response = await fetch('{{ url_for("scans.status", job_id=job.id) }}', {headers: {'Accept': 'application/json'}});
+      if (!response.ok) return;
+      const data = await response.json();
+      if (progress) progress.style.width = `${data.progress || 0}%`;
+      if (terminal) {
+        terminal.textContent = (data.output || []).join('\n');
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+      if (!terminalStates.includes(data.status)) setTimeout(pollJob, 1500);
+    } catch (_) { setTimeout(pollJob, 3000); }
+  }
+  if (!terminalStates.includes('{{ job.status }}')) pollJob();
+})();
+</script>
 {% endblock %}

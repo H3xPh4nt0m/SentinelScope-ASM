@@ -5,6 +5,7 @@ strings — only validated parameters, and commands are built as argument arrays
 executed through subprocess.run without a shell.
 """
 import re
+import selectors
 import shutil
 import subprocess
 import threading
@@ -73,23 +74,49 @@ class SecurityTool:
         return []
 
     # ---- execution ----
-    def execute(self, parameters: dict, timeout: int = 600) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
         if not self.is_available():
             raise ToolUnavailableError(f"tool '{self.name}' is not installed")
         ok, reason = self.validate(parameters)
         if not ok:
             return ToolResult(ok=False, stderr=reason)
         cmd = [self.binary, *self.build_command(parameters)]
+        return self.run_command(cmd, timeout=timeout, on_output=on_output)
+
+    def run_command(self, cmd: list[str], timeout: int = 600, on_output=None,
+                    cwd: str | None = None) -> ToolResult:
+        """Run a safe argv command while streaming bounded output to a callback."""
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                                  shell=False)
-            return ToolResult(ok=proc.returncode == 0, raw_output=proc.stdout or "",
-                              stderr=proc.stderr or "", returncode=proc.returncode,
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       text=True, bufsize=1, shell=False, cwd=cwd)
+            selector = selectors.DefaultSelector()
+            selector.register(process.stdout, selectors.EVENT_READ)
+            lines = []
+            deadline = time.monotonic() + timeout
+            while selector.get_map() and time.monotonic() < deadline:
+                for key, _ in selector.select(timeout=0.5):
+                    line = key.fileobj.readline()
+                    if line == "":
+                        selector.unregister(key.fileobj)
+                        continue
+                    lines.append(line)
+                    if on_output:
+                        on_output(line.rstrip("\r\n"))
+            timed_out = time.monotonic() >= deadline and process.poll() is None
+            if timed_out:
+                process.kill()
+            returncode = process.wait(timeout=5)
+            selector.close()
+            output = "".join(lines)
+            return ToolResult(ok=returncode == 0 and not timed_out, raw_output=output,
+                              stderr="", returncode=returncode, timed_out=timed_out,
                               command=cmd)
         except subprocess.TimeoutExpired:
-            return ToolResult(ok=False, timed_out=True, stderr=f"timed out after {timeout}s")
+            process.kill()
+            return ToolResult(ok=False, timed_out=True, stderr=f"timed out after {timeout}s",
+                              command=cmd)
         except OSError as exc:
-            return ToolResult(ok=False, stderr=str(exc))
+            return ToolResult(ok=False, stderr=str(exc), command=cmd)
 
 
 REGISTRY: dict[str, SecurityTool] = {}

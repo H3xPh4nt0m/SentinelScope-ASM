@@ -38,7 +38,9 @@ Otherwise answer in plain markdown text. Keep answers concise and factual."""
 
 ALLOWED_OPERATIONS = ("subdomain_discovery", "dns_enumeration", "port_scan",
                       "service_detection", "web_probe", "vulnerability_scan",
-                      "passive_recon", "tech_detection")
+                      "passive_recon", "tech_detection", "web_crawl", "url_discovery",
+                      "xss_scan", "subdomain_takeover", "fingerprint_identification",
+                      "site_screenshot", "directory_scan")
 
 
 class LLMError(Exception):

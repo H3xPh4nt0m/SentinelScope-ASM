@@ -168,6 +168,55 @@ def update(asset_id: int):
     return redirect(url_for("assets.detail", asset_id=asset.id))
 
 
+@assets_bp.route("/bulk-delete", methods=["POST"])
+@require_perm("asset:delete")
+def bulk_delete():
+    from sqlalchemy.exc import SQLAlchemyError
+    from app.models.asset import Asset
+
+    raw_ids = request.form.getlist("asset_id")
+    try:
+        asset_ids = sorted({int(value) for value in raw_ids})
+    except (TypeError, ValueError):
+        flash("Invalid asset selection.", "danger")
+        return redirect(url_for("assets.index"))
+    if not asset_ids:
+        flash("Select at least one asset.", "warning")
+        return redirect(url_for("assets.index"))
+    if request.form.get("confirm") != "DELETE":
+        flash("Type DELETE to confirm permanent asset deletion.", "warning")
+        return redirect(url_for("assets.index"))
+
+    assets = (Asset.query.filter(Asset.organization_id == current_org(),
+                                 Asset.status == "active",
+                                 Asset.id.in_(asset_ids)).all())
+    found_ids = {asset.id for asset in assets}
+    if found_ids != set(asset_ids):
+        flash("Selection contains missing, inactive, or cross-organization assets; nothing was deleted.",
+              "danger")
+        audit(action="asset_bulk_delete", resource="asset", result="denied",
+              reason="invalid or cross-organization selection", user=_user(),
+              organization_id=current_org(), details={"requested_ids": asset_ids[:100]})
+        return redirect(url_for("assets.index"))
+
+    try:
+        for asset in assets:
+            db_session().delete(asset)
+        db_session().commit()
+    except SQLAlchemyError:
+        db_session().rollback()
+        flash("Bulk deletion failed; no assets were deleted.", "danger")
+        audit(action="asset_bulk_delete", resource="asset", result="error",
+              reason="database error", user=_user(), organization_id=current_org(),
+              details={"requested_ids": asset_ids[:100]})
+        return redirect(url_for("assets.index"))
+    audit(action="asset_bulk_delete", resource="asset", user=_user(),
+          organization_id=current_org(), details={"deleted_count": len(asset_ids),
+                                                  "asset_ids": asset_ids[:100]})
+    flash(f"Deleted {len(asset_ids)} asset(s) and linked records.", "success")
+    return redirect(url_for("assets.index"))
+
+
 @assets_bp.route("/<int:asset_id>/delete", methods=["POST"])
 @require_perm("asset:delete")
 def delete(asset_id: int):

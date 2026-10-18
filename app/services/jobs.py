@@ -99,7 +99,7 @@ def _run_job(app, job: ScanJob) -> None:
 
             from app.utils import utcnow as _u
             job.tool_version = tool.version()
-            if job.tool == "zap":
+            if job.tool in ("zap", "dalfox", "katana"):
                 target = (job.parameters or {}).get("target") or (job.targets or [None])[0]
                 if target:
                     ensure_web_asset(job.organization_id, target)
@@ -108,7 +108,18 @@ def _run_job(app, job: ScanJob) -> None:
             db.session.commit()
 
             timeout = 900
-            result = tool.execute(job.parameters or {}, timeout=timeout)
+            output_lines = list((job.result_summary or {}).get("output", []))[-200:]
+
+            def on_output(line: str) -> None:
+                if line:
+                    output_lines.append(line[:2000])
+                    del output_lines[:-200]
+                    summary = dict(job.result_summary or {})
+                    summary["output"] = list(output_lines)
+                    job.result_summary = summary
+                    db.session.commit()
+
+            result = tool.execute(job.parameters or {}, timeout=timeout, on_output=on_output)
             job.command = result.command or job.command or []
 
             if job.status == "cancelled":
@@ -126,6 +137,7 @@ def _run_job(app, job: ScanJob) -> None:
             from app.monitoring.scheduler import run_all_updates
             summary["analysis"] = run_all_updates(job.organization_id)
             summary["records_normalized"] = len(records)
+            summary["output"] = list(output_lines)
             job.result_summary = summary
             job.progress = 100
             job.status = "completed"

@@ -39,16 +39,21 @@ _LIST_RE = re.compile(r"^\s*[-*]\s+(.*)$")
 KNOWN_OPERATIONS = {
     "subdomain_discovery", "dns_enumeration", "port_scan", "service_detection",
     "web_probe", "vulnerability_scan", "passive_recon", "tech_detection",
-    "directory_scan", "nasl_scan",
+    "web_crawl", "url_discovery", "xss_scan", "subdomain_takeover",
+    "fingerprint_identification", "site_screenshot", "directory_scan", "nasl_scan",
 }
 KNOWN_INTRUSIVENESS = {"subdomain_discovery": "passive", "dns_enumeration": "passive",
                        "passive_recon": "passive", "web_probe": "passive",
                        "tech_detection": "passive",
                        "port_scan": "active", "service_detection": "active",
-                       "vulnerability_scan": "active", "directory_scan": "active",
+                       "vulnerability_scan": "active", "web_crawl": "active",
+                       "url_discovery": "passive", "xss_scan": "active",
+                       "subdomain_takeover": "active", "fingerprint_identification": "passive",
+                       "site_screenshot": "active", "directory_scan": "active",
                        "nasl_scan": "active"}
 KNOWN_TOOLS = {"amass", "subfinder", "dnsx", "nmap", "naabu", "httpx", "nuclei",
-               "zap", "openvas"}
+               "zap", "openvas", "katana", "waybackurls", "gau", "dalfox", "subzy",
+               "puredns", "waymore", "ffuf", "xingfinger", "playwright"}
 
 _SEVERITY_WORDS = {"low", "medium", "high", "critical", "info", "all", "none"}
 

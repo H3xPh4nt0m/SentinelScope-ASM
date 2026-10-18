@@ -35,6 +35,10 @@ OPERATION_ACL = {
     "vulnerability_scan": "scan:create",
     "passive_recon": "scan:create",
     "tech_detection": "scan:create",
+    "web_crawl": "scan:create", "url_discovery": "scan:create",
+    "xss_scan": "scan:create", "subdomain_takeover": "scan:create",
+    "fingerprint_identification": "scan:create", "site_screenshot": "scan:create",
+    "directory_scan": "scan:create",
 }
 TOOL_FOR_OPERATION = {
     "subdomain_discovery": "subfinder",
@@ -45,6 +49,10 @@ TOOL_FOR_OPERATION = {
     "vulnerability_scan": "nuclei",
     "passive_recon": "amass",
     "tech_detection": "httpx",
+    "web_crawl": "katana", "url_discovery": "waybackurls",
+    "xss_scan": "dalfox", "subdomain_takeover": "subzy",
+    "fingerprint_identification": "xingfinger", "site_screenshot": "playwright",
+    "directory_scan": "ffuf",
 }
 
 

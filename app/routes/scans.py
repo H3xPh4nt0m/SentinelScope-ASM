@@ -19,6 +19,13 @@ OPERATIONS = {
     "vulnerability_scan": ("nuclei", {"targets": [], "severity": ["high", "critical"]}),
     "passive_recon": ("amass", {"domain": ""}),
     "tech_detection": ("httpx", {"targets": []}),
+    "web_crawl": ("katana", {"target": ""}),
+    "url_discovery": ("waybackurls", {"domain": ""}),
+    "xss_scan": ("dalfox", {"target": ""}),
+    "subdomain_takeover": ("subzy", {"target": ""}),
+    "fingerprint_identification": ("xingfinger", {"target": ""}),
+    "site_screenshot": ("playwright", {"target": ""}),
+    "directory_scan": ("ffuf", {"target": ""}),
 }
 
 
@@ -141,8 +148,11 @@ def status(job_id: int):
 
 def _build_parameters(operation: str, form: dict, tool: str | None = None) -> dict:
     target = form.get("target", "").strip().lower()
-    if operation in ("subdomain_discovery", "dns_enumeration", "passive_recon"):
+    if operation in ("subdomain_discovery", "dns_enumeration", "passive_recon", "url_discovery"):
         return {"domain": target}
+    if operation in ("web_crawl", "xss_scan", "subdomain_takeover",
+                     "fingerprint_identification", "site_screenshot", "directory_scan"):
+        return {"target": target}
     if operation in ("port_scan", "service_detection"):
         return {"target": target, "service_detection": form.get("service_detection", True)}
     if operation in ("web_probe", "tech_detection"):

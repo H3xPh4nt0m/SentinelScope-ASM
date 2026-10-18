@@ -83,7 +83,14 @@ class TestZapAdapter:
         tool = ZapTool()
         monkeypatch.setattr(tool, "is_available", lambda: True)
         monkeypatch.setattr(tool, "version", lambda: "ZAP 2.17")
-        monkeypatch.setattr("app.scanners.web.subprocess.run", fake_run)
+        def fake_stream(command, **kwargs):
+            report = command[command.index("-quickout") + 1]
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump(ZAP_JSON, handle)
+            return SimpleNamespace(ok=False, raw_output="", stderr="alerts found",
+                                   returncode=1, timed_out=False, command=command)
+
+        monkeypatch.setattr(tool, "run_command", fake_stream)
         result = tool.execute({"target": "https://api.example.com"})
         assert result.ok is True
         assert result.returncode == 1
