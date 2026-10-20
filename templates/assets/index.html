@@ -34,8 +34,9 @@
     <span class="muted" style="font-size:12px;margin-left:8px">Permanent deletion also removes linked findings, relationships, threats, and risk history.</span>
   {% endif %}
   <table class="tbl">
-    <tr>{% if 'asset:delete' in permissions %}<th><input type="checkbox" id="select-all" style="width:auto" title="Select all"></th>{% endif %}<th>Asset</th><th>Type</th><th>Criticality</th><th>Exposure</th><th>Env</th>
-        <th>Owner</th><th>Risk</th><th>Findings</th><th>Last Seen</th></tr>
+    {% from "_macros/sort.html" import sort_th %}
+    <tr>{% if 'asset:delete' in permissions %}<th><input type="checkbox" id="select-all" style="width:auto" title="Select all"></th>{% endif %}{{ sort_th('Asset', 'name', sort_col, sort_dir, sort_args) }}{{ sort_th('Type', 'type', sort_col, sort_dir, sort_args) }}{{ sort_th('Criticality', 'criticality', sort_col, sort_dir, sort_args) }}{{ sort_th('Exposure', 'exposure', sort_col, sort_dir, sort_args) }}{{ sort_th('Env', 'environment', sort_col, sort_dir, sort_args) }}
+        {{ sort_th('Owner', 'owner', sort_col, sort_dir, sort_args) }}{{ sort_th('Risk', 'risk', sort_col, sort_dir, sort_args) }}<th>Findings</th>{{ sort_th('Last Seen', 'last_seen', sort_col, sort_dir, sort_args) }}</tr>
     {% for a in pagination.items %}
     <tr>
       {% if 'asset:delete' in permissions %}<td><input type="checkbox" name="asset_id" value="{{ a.id }}" class="asset-check" style="width:auto"></td>{% endif %}
@@ -56,9 +57,9 @@
   {% if 'asset:delete' in permissions %}</form>{% endif %}
 
   <div class="pagination">
-    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">‹ prev</a>{% endif %}
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, group=group, q=q, severity=severity, owner=owner, tag=tag, sort=sort_col, dir=sort_dir) }}">‹ prev</a>{% endif %}
     <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
-    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, group=group, q=q, severity=severity, owner=owner, tag=tag) }}">next ›</a>{% endif %}
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, group=group, q=q, severity=severity, owner=owner, tag=tag, sort=sort_col, dir=sort_dir) }}">next ›</a>{% endif %}
   </div>
 </div>
 <script>

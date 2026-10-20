@@ -4,16 +4,16 @@
 {% block content %}
 <div class="panel">
   <h2>Asset Inventory ({{ assets|length }})</h2>
-  <table class="tbl">
+  <table class="tbl" data-sortable>
     <tr><th>Asset</th><th>Type</th><th>IP</th><th>Port</th><th>Criticality</th>
         <th>Exposure</th><th>Owner</th><th>Risk</th></tr>
     {% for a in assets %}
     <tr>
-      <td class="mono">{{ a.display_name }}</td><td>{{ a.asset_type }}</td>
-      <td class="mono">{{ a.ip_address or '—' }}</td><td>{{ a.port or '—' }}</td>
-      <td>{{ a.criticality }}</td><td>{{ a.exposure }}</td>
-      <td class="muted">{{ a.owner or '—' }}</td>
-      <td>{% if a.risk_score is not none %}<span class="badge {{ a.risk_score|score_class }}">{{ a.risk_score }}</span>{% else %}—{% endif %}</td>
+      <td class="mono" data-sort-value="{{ a.display_name }}">{{ a.display_name }}</td><td data-sort-value="{{ a.asset_type }}">{{ a.asset_type }}</td>
+      <td class="mono" data-sort-value="{{ a.ip_address or '' }}">{{ a.ip_address or '—' }}</td><td data-sort-value="{{ a.port or '' }}">{{ a.port or '—' }}</td>
+      <td data-sort-value="{{ {'low':1,'medium':2,'high':3,'critical':4}.get(a.criticality, '') }}">{{ a.criticality }}</td><td data-sort-value="{{ a.exposure }}">{{ a.exposure }}</td>
+      <td class="muted" data-sort-value="{{ a.owner or '' }}">{{ a.owner or '—' }}</td>
+      <td data-sort-value="{{ a.risk_score if a.risk_score is not none else '' }}">{% if a.risk_score is not none %}<span class="badge {{ a.risk_score|score_class }}">{{ a.risk_score }}</span>{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </table>

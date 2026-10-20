@@ -20,8 +20,9 @@
     <a href="{{ url_for('reports.export_findings_csv') }}" class="btn btn-secondary btn-sm" style="margin-left:auto">Export CSV</a>
     {% endif %}
   </form>
+  {% from "_macros/sort.html" import sort_th %}
   <table class="tbl">
-    <tr><th>Severity</th><th>Title</th><th>Asset</th><th>Source</th><th>CVE</th><th>Status</th><th>Last seen</th></tr>
+    <tr>{{ sort_th('Severity', 'severity', sort_col, sort_dir, sort_args) }}{{ sort_th('Title', 'title', sort_col, sort_dir, sort_args) }}{{ sort_th('Asset', 'asset', sort_col, sort_dir, sort_args) }}{{ sort_th('Source', 'source', sort_col, sort_dir, sort_args) }}<th>CVE</th>{{ sort_th('Status', 'status', sort_col, sort_dir, sort_args) }}{{ sort_th('Last seen', 'last_seen', sort_col, sort_dir, sort_args) }}</tr>
     {% for f in pagination.items %}
     <tr>
       <td><span class="badge {{ f.severity|sev_class }}">{{ f.severity }}</span></td>
@@ -35,9 +36,9 @@
     {% else %}<tr><td colspan="7" class="muted">No findings match.</td></tr>{% endfor %}
   </table>
   <div class="pagination">
-    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, severity=severity, status=status, source=source, q=q) }}">‹ prev</a>{% endif %}
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, severity=severity, status=status, source=source, q=q, sort=sort_col, dir=sort_dir) }}">‹ prev</a>{% endif %}
     <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
-    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, severity=severity, status=status, source=source, q=q) }}">next ›</a>{% endif %}
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, severity=severity, status=status, source=source, q=q, sort=sort_col, dir=sort_dir) }}">next ›</a>{% endif %}
   </div>
 </div>
 {% endblock %}

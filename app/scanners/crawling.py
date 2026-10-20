@@ -215,18 +215,37 @@ class XingFingerTool(URLTargetTool):
     binary = "xingfinger"
     META = {"operation": "fingerprint_identification", "intrusiveness": "passive", "output": "technologies"}
 
+    def version(self) -> str:
+        # The CLI has no version flag; avoid showing its "unknown flag" error as a version.
+        return ""
+
     def build_command(self, parameters: dict) -> list[str]:
-        return ["-u", parameters["target"], "-json"]
+        return ["-u", parameters["target"], "-j"]
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         try:
             data = json.loads(raw_result)
         except (TypeError, json.JSONDecodeError):
             return []
-        technologies = data.get("technologies") or data.get("fingerprints") or []
-        return [_endpoint_record(str(parameters["target"]), parameters.get("target")) | {
-            "webapp": {"technologies": technologies}}
-        ] if technologies else []
+        if not isinstance(data, dict):
+            return []
+        seen, technologies = set(), []
+        for item in str(data.get("cms") or "").split(","):
+            name = item.strip()
+            if name and name not in seen:
+                seen.add(name)
+                technologies.append(name)
+        if not technologies:
+            return []
+        target = str(parameters.get("target") or data.get("url") or "")
+        return [_endpoint_record(target, parameters.get("target")) | {
+            "asset_type": "webapp",
+            "webapp": {
+                "technologies": technologies,
+                "title": str(data.get("title") or ""),
+                "webserver": str(data.get("server") or ""),
+                "status_code": data.get("status_code"),
+            }}]
 
 
 class PlaywrightScreenshotTool(URLTargetTool):

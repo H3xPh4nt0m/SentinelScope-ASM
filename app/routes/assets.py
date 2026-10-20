@@ -50,16 +50,30 @@ def index():
         query = query.filter(Asset.owner == owner)
     if tag:
         query = query.join(AssetTag, AssetTag.asset_id == Asset.id).filter(AssetTag.tag == tag)
-    pagination = query.order_by(Asset.risk_score.desc().nullslast(),
-                                Asset.last_seen.desc()).paginate(page=page, per_page=25,
-                                                                 error_out=False)
+    from app.sorting import apply_sort, parse_sort, sort_link_args
+    from sqlalchemy import func as sa_func
+    allowed = {
+        "name": sa_func.lower(Asset.name),
+        "type": sa_func.lower(Asset.asset_type),
+        "risk": Asset.risk_score,
+        "criticality": sa_func.lower(Asset.criticality),
+        "exposure": sa_func.lower(Asset.exposure),
+        "owner": sa_func.lower(Asset.owner),
+        "environment": sa_func.lower(Asset.environment),
+        "last_seen": Asset.last_seen,
+    }
+    sort_col, sort_dir = parse_sort(request.args, allowed, default="risk", default_dir="desc")
+    query = apply_sort(query, allowed, sort_col, sort_dir)
+    pagination = query.paginate(page=page, per_page=25, error_out=False)
     owners = [r[0] for r in Asset.query.with_entities(Asset.owner)
               .filter_by(organization_id=current_org()).distinct().all() if r[0]]
     tags = [r[0] for r in AssetTag.query.join(Asset).filter(Asset.organization_id == current_org())
             .with_entities(AssetTag.tag).distinct().all()]
     return render_template("assets/index.html", pagination=pagination, group=group, q=q,
                            severity=severity, environment=environment, owner=owner, tag=tag,
-                           owners=owners, tags=tags, **org_context())
+                           owners=owners, tags=tags, sort_col=sort_col, sort_dir=sort_dir,
+                           sort_args=lambda column: sort_link_args(request.args, column),
+                           **org_context())
 
 
 def func_lower(col):

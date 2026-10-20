@@ -28,10 +28,25 @@ def index():
     if q:
         from sqlalchemy import func
         query = query.filter(func.lower(Finding.title).like(f"%{q.lower()}%"))
-    pagination = query.order_by(Finding.last_seen.desc()).paginate(page=page, per_page=25,
-                                                                   error_out=False)
+    from sqlalchemy import func as sa_func
+    from app.models.asset import Asset
+    from app.sorting import apply_sort, parse_sort, severity_rank_expr, sort_link_args
+    allowed = {
+        "title": sa_func.lower(Finding.title),
+        "severity": severity_rank_expr(Finding.severity),
+        "asset": sa_func.lower(Asset.name),
+        "source": sa_func.lower(Finding.source),
+        "status": sa_func.lower(Finding.status),
+        "last_seen": Finding.last_seen,
+    }
+    query = query.outerjoin(Asset, Asset.id == Finding.asset_id)
+    sort_col, sort_dir = parse_sort(request.args, allowed, default="last_seen", default_dir="desc")
+    query = apply_sort(query, allowed, sort_col, sort_dir)
+    pagination = query.paginate(page=page, per_page=25, error_out=False)
     return render_template("vulns/index.html", pagination=pagination, severity=severity,
                            status=status, source=source, q=q, statuses=FINDING_STATUSES,
+                           sort_col=sort_col, sort_dir=sort_dir,
+                           sort_args=lambda column: sort_link_args(request.args, column),
                            **org_context())
 
 

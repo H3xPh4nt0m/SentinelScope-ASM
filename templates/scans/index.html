@@ -16,8 +16,9 @@
     {% endif %}
   </form>
   <table class="tbl">
-    <tr><th>Job</th><th>Tool</th><th>Operation</th><th>Targets</th><th>Status</th>
-        <th>Source</th><th>Created</th><th></th></tr>
+    {% from "_macros/sort.html" import sort_th %}
+    <tr>{{ sort_th('Job', 'job', sort_col, sort_dir, sort_args) }}{{ sort_th('Tool', 'tool', sort_col, sort_dir, sort_args) }}{{ sort_th('Operation', 'operation', sort_col, sort_dir, sort_args) }}<th>Targets</th>{{ sort_th('Status', 'status', sort_col, sort_dir, sort_args) }}
+        {{ sort_th('Source', 'source', sort_col, sort_dir, sort_args) }}{{ sort_th('Created', 'created', sort_col, sort_dir, sort_args) }}<th></th></tr>
     {% for j in pagination.items %}
     <tr>
       <td>#{{ j.id }}</td>
@@ -32,9 +33,9 @@
     {% else %}<tr><td colspan="8" class="muted">No scan jobs yet.</td></tr>{% endfor %}
   </table>
   <div class="pagination">
-    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, status=status) }}">‹ prev</a>{% endif %}
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, status=status, sort=sort_col, dir=sort_dir) }}">‹ prev</a>{% endif %}
     <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
-    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, status=status) }}">next ›</a>{% endif %}
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, status=status, sort=sort_col, dir=sort_dir) }}">next ›</a>{% endif %}
   </div>
 </div>
 {% endblock %}

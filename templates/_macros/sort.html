@@ -1,0 +1,10 @@
+{#- Sortable column header for server-paginated lists.
+    sort_args(column) returns query args that keep filters and toggle direction.
+    Pass the current sort column/direction from the route. -#}
+{% macro sort_th(label, column, sort_col, sort_dir, sort_args) -%}
+<th class="sortable{% if sort_col == column %} sorted{% endif %}" data-sort-key="{{ column }}">
+  <a href="{{ url_for(request.endpoint, **sort_args(column)) }}" class="sort-link">
+    {{ label }}<span class="sort-icon" aria-hidden="true">{% if sort_col == column %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% else %}↕{% endif %}</span>
+  </a>
+</th>
+{%- endmacro %}

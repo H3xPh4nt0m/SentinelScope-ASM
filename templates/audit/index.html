@@ -13,7 +13,8 @@
     <button class="btn btn-sm">Filter</button>
   </form>
   <table class="tbl">
-    <tr><th>Time</th><th>User</th><th>Action</th><th>Resource</th><th>Result</th><th>Reason</th><th>IP</th></tr>
+    {% from "_macros/sort.html" import sort_th %}
+    <tr>{{ sort_th('Time', 'time', sort_col, sort_dir, sort_args) }}{{ sort_th('User', 'user', sort_col, sort_dir, sort_args) }}{{ sort_th('Action', 'action', sort_col, sort_dir, sort_args) }}{{ sort_th('Resource', 'resource', sort_col, sort_dir, sort_args) }}{{ sort_th('Result', 'result', sort_col, sort_dir, sort_args) }}<th>Reason</th><th>IP</th></tr>
     {% for e in pagination.items %}
     <tr>
       <td class="muted mono" style="font-size:11px">{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
@@ -27,9 +28,9 @@
     {% else %}<tr><td colspan="7" class="muted">No audit entries.</td></tr>{% endfor %}
   </table>
   <div class="pagination">
-    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, result=result, action=action) }}">‹ prev</a>{% endif %}
+    {% if pagination.has_prev %}<a href="{{ url_for(request.endpoint, page=pagination.prev_num, result=result, action=action, sort=sort_col, dir=sort_dir) }}">‹ prev</a>{% endif %}
     <span class="current">page {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
-    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, result=result, action=action) }}">next ›</a>{% endif %}
+    {% if pagination.has_next %}<a href="{{ url_for(request.endpoint, page=pagination.next_num, result=result, action=action, sort=sort_col, dir=sort_dir) }}">next ›</a>{% endif %}
   </div>
 </div>
 {% endblock %}

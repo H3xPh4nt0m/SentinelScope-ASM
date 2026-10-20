@@ -73,10 +73,21 @@ def paths():
     from app.models.risk import AttackPath
     org_id = current_org()
     page = request.args.get("page", 1, type=int)
-    pagination = (AttackPath.query.filter_by(organization_id=org_id)
-                  .order_by(AttackPath.risk_score.desc())
-                  .paginate(page=page, per_page=20, error_out=False))
-    return render_template("risk/paths.html", pagination=pagination, **org_context())
+    from app.sorting import apply_sort, parse_sort, sort_link_args
+    from sqlalchemy import func as sa_func
+    allowed = {
+        "title": sa_func.lower(AttackPath.title),
+        "type": sa_func.lower(AttackPath.path_type),
+        "score": AttackPath.risk_score,
+    }
+    query = AttackPath.query.filter_by(organization_id=org_id)
+    sort_col, sort_dir = parse_sort(request.args, allowed, default="score", default_dir="desc")
+    query = apply_sort(query, allowed, sort_col, sort_dir)
+    pagination = query.paginate(page=page, per_page=20, error_out=False)
+    return render_template("risk/paths.html", pagination=pagination, sort_col=sort_col,
+                           sort_dir=sort_dir,
+                           sort_args=lambda column: sort_link_args(request.args, column),
+                           **org_context())
 
 
 @risk_bp.route("/paths/<int:path_id>")

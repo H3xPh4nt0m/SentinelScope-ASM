@@ -38,9 +38,22 @@ def index():
     query = ScanJob.query.filter_by(organization_id=current_org())
     if status:
         query = query.filter_by(status=status)
-    pagination = query.order_by(ScanJob.created_at.desc()).paginate(page=page, per_page=20,
-                                                                    error_out=False)
+    from app.sorting import apply_sort, parse_sort, sort_link_args
+    from sqlalchemy import func as sa_func
+    allowed = {
+        "job": ScanJob.id,
+        "tool": sa_func.lower(ScanJob.tool),
+        "operation": sa_func.lower(ScanJob.operation),
+        "status": sa_func.lower(ScanJob.status),
+        "source": sa_func.lower(ScanJob.source),
+        "created": ScanJob.created_at,
+    }
+    sort_col, sort_dir = parse_sort(request.args, allowed, default="created", default_dir="desc")
+    query = apply_sort(query, allowed, sort_col, sort_dir)
+    pagination = query.paginate(page=page, per_page=20, error_out=False)
     return render_template("scans/index.html", pagination=pagination, status=status,
+                           sort_col=sort_col, sort_dir=sort_dir,
+                           sort_args=lambda column: sort_link_args(request.args, column),
                            **org_context())
 
 
