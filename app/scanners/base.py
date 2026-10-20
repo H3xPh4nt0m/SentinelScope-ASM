@@ -4,8 +4,10 @@ Every external tool is wrapped by an adapter. Adapters never receive raw shell
 strings — only validated parameters, and commands are built as argument arrays
 executed through subprocess.run without a shell.
 """
+import os
 import re
 import selectors
+import signal
 import shutil
 import subprocess
 import threading
@@ -52,12 +54,14 @@ class SecurityTool:
             return ""
         try:
             out = subprocess.run([self.binary, *self.version_flag],
-                                 capture_output=True, text=True, timeout=5)
-            lines = ((out.stdout or "") + "\n" + (out.stderr or "")).strip().splitlines()
-            for line in lines:
-                if re.search(r"(?:^|\s)v?\d+\.\d+", line, re.IGNORECASE):
-                    return line.strip()[:64]
-            return lines[0][:64] if lines else ""
+                                 capture_output=True, text=True, timeout=20)
+            text = ((out.stdout or "") + "\n" + (out.stderr or "")).strip()
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            if not lines:
+                return ""
+            version_pattern = re.compile(r"(?:^|\s)v?\d+\.\d+(?:\.\d+)?\b", re.IGNORECASE)
+            return next((line[:64] for line in lines if version_pattern.search(line)),
+                        lines[0][:64])
         except Exception:
             return ""
 
@@ -87,36 +91,121 @@ class SecurityTool:
                     cwd: str | None = None) -> ToolResult:
         """Run a safe argv command while streaming bounded output to a callback."""
         try:
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                       text=True, bufsize=1, shell=False, cwd=cwd)
+            timeout = max(1, int(timeout))
+        except (TypeError, ValueError):
+            timeout = 600
+        process = None
+        selector = None
+        output = bytearray()
+        pending = bytearray()
+        timed_out = False
+
+        def consume(chunk: bytes) -> None:
+            output.extend(chunk)
+            pending.extend(chunk)
+            while True:
+                positions = [i for i in (pending.find(b"\n"), pending.find(b"\r")) if i >= 0]
+                if not positions:
+                    break
+                end = min(positions)
+                segment = bytes(pending[:end])
+                skip = 2 if pending[end:end + 2] == b"\r\n" else 1
+                pending[:] = pending[end + skip:]
+                if on_output and segment:
+                    on_output(segment.decode("utf-8", "replace"))
+
+        try:
+            kwargs = {"stdout": subprocess.PIPE, "stderr": subprocess.STDOUT,
+                      "text": False, "bufsize": 0, "shell": False, "cwd": cwd}
+            if os.name == "posix":
+                kwargs["start_new_session"] = True
+            process = subprocess.Popen(cmd, **kwargs)
             selector = selectors.DefaultSelector()
             selector.register(process.stdout, selectors.EVENT_READ)
-            lines = []
             deadline = time.monotonic() + timeout
-            while selector.get_map() and time.monotonic() < deadline:
-                for key, _ in selector.select(timeout=0.5):
-                    line = key.fileobj.readline()
-                    if line == "":
+            while process.poll() is None or selector.get_map():
+                if process.poll() is None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        timed_out = True
+                        break
+                    events = (selector.select(timeout=min(0.5, remaining))
+                              if selector.get_map() else [])
+                    if not selector.get_map():
+                        try:
+                            process.wait(timeout=min(0.1, remaining))
+                        except subprocess.TimeoutExpired:
+                            continue
+                        continue
+                    if not events:
+                        continue
+                else:
+                    if not selector.get_map():
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        timed_out = True
+                        break
+                    events = selector.select(timeout=min(0.25, remaining))
+                    if not events:
+                        continue
+                for key, _ in events:
+                    chunk = os.read(key.fd, 65536)
+                    if not chunk:
                         selector.unregister(key.fileobj)
                         continue
-                    lines.append(line)
-                    if on_output:
-                        on_output(line.rstrip("\r\n"))
-            timed_out = time.monotonic() >= deadline and process.poll() is None
+                    consume(chunk)
+            if process.poll() is None:
+                timed_out = True
             if timed_out:
-                process.kill()
+                self._terminate_process(process)
             returncode = process.wait(timeout=5)
-            selector.close()
-            output = "".join(lines)
-            return ToolResult(ok=returncode == 0 and not timed_out, raw_output=output,
-                              stderr="", returncode=returncode, timed_out=timed_out,
-                              command=cmd)
+            if pending and on_output:
+                on_output(pending.decode("utf-8", "replace").rstrip("\r\n"))
+            return ToolResult(ok=returncode == 0 and not timed_out,
+                              raw_output=bytes(output).decode("utf-8", "replace"),
+                              stderr=(f"timed out after {timeout}s" if timed_out else ""),
+                              returncode=returncode, timed_out=timed_out, command=cmd)
         except subprocess.TimeoutExpired:
-            process.kill()
-            return ToolResult(ok=False, timed_out=True, stderr=f"timed out after {timeout}s",
-                              command=cmd)
+            timed_out = True
+            if process is not None:
+                self._terminate_process(process)
+                try:
+                    returncode = process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    returncode = -9
+            else:
+                returncode = -1
+            return ToolResult(ok=False, raw_output=bytes(output).decode("utf-8", "replace"),
+                              timed_out=True, stderr=f"timed out after {timeout}s",
+                              returncode=returncode, command=cmd)
         except OSError as exc:
-            return ToolResult(ok=False, stderr=str(exc), command=cmd)
+            return ToolResult(ok=False, raw_output=bytes(output).decode("utf-8", "replace"),
+                              stderr=str(exc), command=cmd)
+        finally:
+            if process is not None and process.poll() is None:
+                self._terminate_process(process)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            if selector is not None:
+                selector.close()
+
+    @staticmethod
+    def _terminate_process(process) -> None:
+        if process.poll() is not None and os.name != "posix":
+            return
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except (OSError, ProcessLookupError):
+            try:
+                process.kill()
+            except (OSError, ProcessLookupError):
+                pass
 
 
 REGISTRY: dict[str, SecurityTool] = {}

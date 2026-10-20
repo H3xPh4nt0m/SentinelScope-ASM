@@ -139,20 +139,24 @@ dpkg -L zaproxy | grep '/zap.sh$'
 SentinelScope detects `/usr/share/zaproxy/zap.sh` automatically (or set `ZAP_BINARY` in
 the environment). ZAP uses its quick baseline scanner and writes a structured JSON report;
 alerts are normalized into the shared Finding model, deduplicated, and included in STRIDE,
-risk, KPI/KRI and reports. ZAP is an active scan: it must be allowed by policy and may
-require explicit approval for production assets. Use only authorized targets.
+risk, KPI/KRI and reports. Each job uses an isolated temporary ZAP home directory so
+concurrent jobs do not conflict. ZAP jobs default to a 30-minute timeout (bounded
+configurable timeout: 60–3600 seconds). ZAP is an active scan: it must be allowed by
+policy and may require explicit approval for production assets. Use only authorized targets.
 
 Adapters live in `app/scanners/`. Adding a tool = one adapter file + registration — no
 changes to core logic.
 
 ## 7. Tool execution safety
 
-- All commands are built as **argument arrays** executed with `subprocess.run(..., shell=False)`.
+- All commands are built as **argument arrays** executed with `shell=False` in their own
+  process group; a timeout terminates the whole group.
 - Targets are validated against the **published policy scope** before queueing.
 - Adapter-level `validate()` rejects flag injection (e.g. a target starting with `-`).
 - Every job has an ID, status lifecycle (`queued → running → completed/failed/cancelled`),
   start/end times, tool version, command metadata and captured output/errors.
-- Cancellation is cooperative (`scan:cancel` permission).
+- Cancellation (`scan:cancel` permission) marks the job cancelled and prevents its results
+  from being ingested; a process that is already running is not interrupted.
 
 ## 8. `.env` configuration
 

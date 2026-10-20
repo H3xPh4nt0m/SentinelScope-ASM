@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(python3 -m pytest tests/ -q)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(pytest -q tests/test_tool_status.py)",
+      "Bash(python -)",
+      "Bash(waymore --help)",
+      "Bash(waymore --version)",
+      "Bash(/usr/share/zaproxy/zap.sh -version)",
+      "Bash(pytest -q)",
+      "Bash(export AGENT_BROWSER_SESSION=\"scanner-qa-2b9f886faa0a\")",
+      "Bash(python -m py_compile app/scanners/base.py app/scanners/crawling.py app/scanners/web.py)",
+      "Bash(agent-browser --session scanner-qa-2b9f886faa0a close)",
+      "Bash(agent-browser dashboard *)",
+      "Bash(kill 6730 179924)",
+      "Bash(ps -eo pid,cmd)",
+      "Bash(curl -s -o /dev/null -w 'login http=%{http_code}\\\\n' http://127.0.0.1:5000/auth/login)",
+      "Read(//tmp/**)",
+      "Bash(ps -eo pid,ppid,lstart,cmd)",
+      "Bash(/usr/share/zaproxy/zap.sh -h)",
+      "Skill(agent-browser)"
     ]
   }
 }

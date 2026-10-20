@@ -115,7 +115,8 @@ flowchart TB
 3. **Queuing** — a `ScanJob` row is created (`queued`); background worker threads pick it
    up (`running`) so HTTP requests never block on slow scans.
 4. **Execution** — the tool adapter builds an **argument array** (never a shell string)
-   and runs it with `subprocess.run(..., shell=False)`.
+   and runs it with `shell=False` in its own process group; a timeout terminates the whole
+   group.
 5. **Normalization** — the adapter parses raw output into normalized records.
 6. **Correlation** — records become graph assets (`domain → subdomain → ip → port →
    webapp → technology`), linked with typed relationships. Vulnerability records become
@@ -128,8 +129,10 @@ flowchart TB
 ### Background workers
 
 Two worker threads run inside the web process. They poll the `scan_jobs` table, so the
-web UI stays responsive. Jobs can be cancelled cooperatively. Stale `running` jobs left
-by a restart are marked failed at startup.
+web UI stays responsive. Each job is claimed by one worker only. Cancelling a job marks it
+cancelled and stops its results from being ingested, but a process that is already running
+is not interrupted and runs until it finishes or times out. Stale `running` jobs left by a
+restart are marked failed at startup.
 
 ### Database
 
@@ -594,12 +597,8 @@ findings). Path score = 20 + exposure/admin/findings bonuses. Always labeled
 
 | KPI | Formula |
 |---|---|
-| Asset Discovery Coverage | discovered / expected × 100 (expected = 20 × scope domains) |
 | Scan Completion Rate | completed / finished × 100 |
 | Vulnerability Remediation Rate | closed / total × 100 |
-| Mean Time To Remediation | mean(resolved_at − first_seen) in hours |
-| Asset Classification Coverage | (has criticality AND owner) / total × 100 |
-| Policy Compliance Rate | compliant / total scan+LLM actions × 100 (30 days) |
 | Scan Success Rate | successful / (successful + failed) × 100 |
 
 **KRIs** (risk exposure) — `/metrics/kri`:
@@ -609,12 +608,10 @@ findings). Path score = 20 + exposure/admin/findings bonuses. Always labeled
 | Critical Internet-Facing Assets | count(internet AND criticality ∈ {high, critical}) |
 | Critical Vulnerability Exposure | count(open critical findings on internet assets) |
 | High-Risk Asset Percentage | count(score ≥ 70) / total × 100 |
-| Attack Surface Growth | (new − removed) / current × 100 (30 days) |
 | Newly Exposed Assets | new internet-facing in 7 days |
 | Unmanaged Assets | no owner or no criticality |
 | STRIDE Risk Distribution | threats per category |
 | High-Risk Attack Paths | paths with score ≥ 70 |
-| Policy Violations | denied decisions in 30 days |
 | Open High-Severity CVEs | open findings with CVE, severity high/critical |
 
 Snapshots are recorded on recalculation/monitoring cycles and power trend charts.

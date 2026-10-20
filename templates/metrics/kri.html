@@ -6,7 +6,7 @@
   {% for k in kris if k.key != 'stride_risk_distribution' %}
   <div class="card">
     <div class="card-label">{{ k.key.replace('_', ' ').title() }}</div>
-    <div class="card-value {{ 'sev-critical' if k.value and k.key in ('critical_vulnerability_exposure','critical_internet_facing','policy_violations') }}">{{ k.value }}<span style="font-size:13px;color:var(--text-dim)">{{ k.unit }}</span></div>
+    <div class="card-value {{ 'sev-critical' if k.value and k.key in ('critical_vulnerability_exposure','critical_internet_facing') }}">{{ k.value }}<span style="font-size:13px;color:var(--text-dim)">{{ k.unit }}</span></div>
     <div class="card-sub">{{ k.formula }}</div>
   </div>
   {% endfor %}

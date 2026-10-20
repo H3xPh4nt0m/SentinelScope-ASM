@@ -96,7 +96,8 @@ class NucleiTool(SecurityTool):
         templates = parameters.get("templates")
         if templates:
             cmd += ["-t", templates]
-        cmd += [str(target) for target in (parameters.get("targets") or [])]
+        for target in (parameters.get("targets") or []):
+            cmd += ["-target", str(target)]
         return cmd
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
@@ -136,7 +137,6 @@ class ZapTool(SecurityTool):
     job result but must not discard a valid report.
     """
     name = "zap"
-    binary = "zap.sh"
     version_flag = ("-version",)
     META = {"operation": "vulnerability_scan", "intrusiveness": "active", "output": "findings"}
     RISK_MAP = {
@@ -178,6 +178,11 @@ class ZapTool(SecurityTool):
                 "-quickprogress"]
 
     def execute(self, parameters: dict, timeout: int = 900, on_output=None) -> ToolResult:
+        try:
+            timeout = int(timeout)
+        except (TypeError, ValueError):
+            timeout = 900
+        timeout = min(max(timeout, 60), 3600)
         if not self.is_available():
             raise ToolUnavailableError("tool 'zap' is not installed")
         ok, reason = self.validate(parameters)
@@ -187,14 +192,29 @@ class ZapTool(SecurityTool):
             report_path = str(Path(workdir) / "report.json")
             params = dict(parameters)
             params["report_path"] = report_path
-            cmd = [self.binary, *self.build_command(params)]
+            # Isolate ZAP's home/config/database per job so concurrent scans
+            # cannot lock the shared /root/.ZAP directory.
+            zap_home = str(Path(workdir) / "zap-home")
+            Path(zap_home).mkdir()
+            cmd = [self.binary, "-dir", zap_home, *self.build_command(params)]
             result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
             report = ""
             report_file = Path(report_path)
             if report_file.is_file():
                 report = report_file.read_text(encoding="utf-8", errors="replace")
-            # A valid report can accompany ZAP's alert exit status (typically 1).
-            return ToolResult(ok=result.ok or bool(report.strip()),
+            # A valid report can accompany ZAP's alert exit status (typically 1),
+            # but a timeout is never a successful scan.
+            report_ok = False
+            if report.strip():
+                try:
+                    if report.lstrip().startswith("<"):
+                        ET.fromstring(report)
+                    else:
+                        json.loads(report)
+                    report_ok = True
+                except (ET.ParseError, json.JSONDecodeError):
+                    pass
+            return ToolResult(ok=not result.timed_out and (result.ok or report_ok),
                               raw_output=report or result.raw_output,
                               stderr=result.stderr, returncode=result.returncode,
                               timed_out=result.timed_out, command=cmd)
@@ -229,8 +249,9 @@ def _normalize_zap_json(data: dict, parameters: dict) -> list[dict]:
         for alert in site.get("alerts") or []:
             records.append(_zap_alert_record(alert, site_url, parameters))
     # Some ZAP JSON exporters emit alerts at the root.
+    root_target = parameters.get("target") or _first_target(parameters.get("targets"))
     for alert in data.get("alerts") or []:
-        records.append(_zap_alert_record(alert, _first_target(parameters.get("targets")), parameters))
+        records.append(_zap_alert_record(alert, root_target, parameters))
     return records
 
 

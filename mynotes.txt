@@ -1,1 +1,2 @@
-ASM session: claude --resume c5831ce3-3cb3-474a-9e0b-916916c5de05
+ASM Session 1 : claude --resume c5831ce3-3cb3-474a-9e0b-916916c5de05
+ASM Session 2 : claude --resume 7da065a8-bbb2-4b71-9172-a39032f9830a

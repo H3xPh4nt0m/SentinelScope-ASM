@@ -57,7 +57,7 @@ def run_cycle(schedule: Schedule) -> dict:
     allowed_tools = set((version.data or {}).get("allowed_tools", [])) if version else set()
 
     # 1. Discovery on root domains in scope
-    discovery_tools = [t for t in ("subfinder", "amass")
+    discovery_tools = [t for t in ("subfinder",)
                        if t in allowed_tools and get_tool(t) and get_tool(t).is_available()]
     for tool_name in discovery_tools:
         tool = get_tool(tool_name)

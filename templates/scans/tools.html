@@ -19,16 +19,5 @@
     </tr>
     {% endfor %}
   </table>
-  <h2 style="margin-top:16px">Installation hints</h2>
-  <pre>subfinder: go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-dnsx:      go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-naabu:     go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-nmap:      apt install nmap
-amass:     apt install amass (or go install github.com/owasp-amass/amass/v4/...@latest)
-httpx (Kali): sudo apt install httpx-toolkit   # executable: httpx-toolkit
-httpx (upstream): go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-# SentinelScope keeps the logical policy/tool name "httpx"
-nuclei:    go install -v github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest
-zap:       apt install zaproxy (adapter expects zap.sh on PATH)</pre>
 </div>
 {% endblock %}

@@ -26,7 +26,7 @@ class KatanaTool(URLTargetTool):
     META = {"operation": "web_crawl", "intrusiveness": "active", "output": "endpoints"}
 
     def build_command(self, parameters: dict) -> list[str]:
-        return ["-u", parameters["target"], "-json", "-silent"]
+        return ["-u", parameters["target"], "-jsonl", "-silent"]
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         out = []
@@ -35,7 +35,8 @@ class KatanaTool(URLTargetTool):
                 record = json.loads(line)
             except (TypeError, json.JSONDecodeError):
                 continue
-            url = (record.get("request") or {}).get("url") or \
+            url = (record.get("request") or {}).get("endpoint") or \
+                  (record.get("request") or {}).get("url") or \
                   (record.get("response") or {}).get("url") or record.get("url")
             if url:
                 out.append(_endpoint_record(str(url), parameters.get("target")))
@@ -105,25 +106,40 @@ class DalfoxTool(URLTargetTool):
     SEVERITY_MAP = {"high": "high", "medium": "medium", "low": "low", "info": "info"}
 
     def build_command(self, parameters: dict) -> list[str]:
-        return ["url", parameters["target"], "--format", "json", "--silence"]
+        return ["url", "--url", parameters["target"], "--format", "json", "--silence"]
+
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+        result = super().execute(parameters, timeout=timeout, on_output=on_output)
+        if not result.ok and not result.timed_out and result.returncode == 1:
+            try:
+                payload = json.loads(result.raw_output)
+            except (TypeError, json.JSONDecodeError):
+                return result
+            if isinstance(payload, dict) and isinstance(payload.get("findings"), list):
+                result.ok = True
+        return result
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         try:
             payload = json.loads(raw_result)
         except (TypeError, json.JSONDecodeError):
             return []
-        records = payload if isinstance(payload, list) else payload.get("results", []) if isinstance(payload, dict) else []
+        if isinstance(payload, dict):
+            records = payload.get("findings") or payload.get("results") or []
+        else:
+            records = payload if isinstance(payload, list) else []
         out = []
         for item in records:
-            if not isinstance(item, dict):
+            if not isinstance(item, dict) or str(item.get("type", "")).upper() != "V":
                 continue
-            poc = str(item.get("pocType") or item.get("type") or "xss")
-            target = item.get("url") or item.get("data") or parameters.get("target", "")
+            poc = str(item.get("cwe") or "XSS")
+            target = item.get("data") or parameters.get("target", "")
+            param = item.get("param") or ""
             out.append({"finding": True, "source": "dalfox", "target": str(target),
-                        "template_id": f"dalfox:{poc}", "title": f"Potential {poc} XSS",
+                        "template_id": f"dalfox:{param}", "title": f"Reflected XSS in parameter '{param}'",
                         "severity": self.SEVERITY_MAP.get(str(item.get("severity", "info")).lower(), "info"),
-                        "description": str(item.get("data") or item.get("message") or ""),
-                        "evidence": str(item.get("injectType") or item.get("payload") or target),
+                        "cve": None, "description": str(item.get("message_str") or ""),
+                        "evidence": str(item.get("payload") or target)[:4000],
                         "remediation": "Validate and encode untrusted input; use a restrictive CSP."})
         return out
 
@@ -147,7 +163,15 @@ class PureDNSTool(URLHistoryTool):
 class WaymoreTool(URLHistoryTool):
     name = "waymore"
     binary = "waymore"
+    version_flag = ("--version",)
     META = {"operation": "url_discovery", "intrusiveness": "passive", "output": "historical URLs"}
+
+    def version(self) -> str:
+        try:
+            from importlib.metadata import PackageNotFoundError, version
+            return f"waymore {version('waymore')}"
+        except PackageNotFoundError:
+            return ""
 
     def build_command(self, parameters: dict) -> list[str]:
         return ["-i", parameters["domain"], "-mode", "U"]
@@ -226,6 +250,7 @@ class PlaywrightScreenshotTool(URLTargetTool):
 class SubzyTool(SecurityTool):
     name = "subzy"
     binary = "subzy"
+    version_flag = ("version",)
     META = {"operation": "subdomain_takeover", "intrusiveness": "active", "output": "takeover findings"}
 
     def validate(self, parameters: dict) -> tuple[bool, str]:
@@ -235,15 +260,15 @@ class SubzyTool(SecurityTool):
         return True, ""
 
     def build_command(self, parameters: dict) -> list[str]:
-        return ["-target", parameters["target"]]
+        return ["run", "--target", parameters["target"], "--https", "--vuln"]
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         out = []
         for line in raw_result.splitlines():
-            low = line.lower()
-            if "vulnerable" not in low:
+            if "[ vulnerable ]" not in line.lower() and "[vulnerable]" not in line.lower():
                 continue
-            target = line.split(":", 1)[0].strip() or parameters.get("target", "")
+            match = re.search(r"https?://\S+|[a-z0-9][a-z0-9.-]*\.[a-z]{2,}", line, re.IGNORECASE)
+            target = match.group(0).rstrip("/") if match else parameters.get("target", "")
             out.append({"finding": True, "source": "subzy", "target": target,
                         "template_id": "subdomain-takeover",
                         "title": "Potential subdomain takeover", "severity": "high",

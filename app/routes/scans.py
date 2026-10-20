@@ -17,7 +17,7 @@ OPERATIONS = {
     "service_detection": ("nmap", {"target": "", "service_detection": True}),
     "web_probe": ("httpx", {"targets": []}),
     "vulnerability_scan": ("nuclei", {"targets": [], "severity": ["high", "critical"]}),
-    "passive_recon": ("amass", {"domain": ""}),
+    "passive_recon": ("subfinder", {"domain": ""}),
     "tech_detection": ("httpx", {"targets": []}),
     "web_crawl": ("katana", {"target": ""}),
     "url_discovery": ("waybackurls", {"domain": ""}),

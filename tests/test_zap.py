@@ -1,5 +1,6 @@
 """OWASP ZAP adapter and normalized finding integration tests."""
 import json
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 from app.models.asset import Asset
@@ -96,11 +97,61 @@ class TestZapAdapter:
         assert result.returncode == 1
         assert json.loads(result.raw_output)["site"]
         assert result.command
+        assert "-dir" in result.command
+        assert "zap-home" in result.command[result.command.index("-dir") + 1]
+
+    def test_timed_out_report_is_not_successful(self, monkeypatch):
+        tool = ZapTool()
+        monkeypatch.setattr(tool, "is_available", lambda: True)
+        seen = {}
+
+        def fake_stream(command, **kwargs):
+            seen["timeout"] = kwargs["timeout"]
+            report = command[command.index("-quickout") + 1]
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump(ZAP_JSON, handle)
+            return SimpleNamespace(ok=False, raw_output="", stderr="timed out",
+                                   returncode=-9, timed_out=True, command=command)
+
+        monkeypatch.setattr(tool, "run_command", fake_stream)
+        result = tool.execute({"target": "https://api.example.com"}, timeout=5)
+        assert seen["timeout"] == 60
+        assert result.ok is False
+        assert result.timed_out is True
+
+    def test_parallel_executions_use_distinct_zap_homes(self, monkeypatch):
+        tool = ZapTool()
+        monkeypatch.setattr(tool, "is_available", lambda: True)
+        commands = []
+
+        def fake_stream(command, **kwargs):
+            commands.append(command)
+            return SimpleNamespace(ok=True, raw_output="{}", stderr="", returncode=0,
+                                   timed_out=False, command=command)
+
+        monkeypatch.setattr(tool, "run_command", fake_stream)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(
+                lambda _: tool.execute({"target": "https://api.example.com"}),
+                range(2)))
+        homes = [command[command.index("-dir") + 1] for command in commands]
+        reports = [command[command.index("-quickout") + 1] for command in commands]
+        assert all(result.ok for result in results)
+        assert len(set(homes)) == 2
+        assert len(set(reports)) == 2
+
+    def test_root_alert_uses_single_target_parameter(self):
+        data = {"alerts": [{"pluginid": "10020", "alert": "Missing header",
+                             "riskcode": "1", "instances": []}]}
+        records = ZapTool().normalize(json.dumps(data), {"target": "https://api.example.com"})
+        assert records[0]["target"] == "https://api.example.com"
 
     def test_nuclei_and_httpx_include_targets_in_argv(self):
-        assert "https://api.example.com" in NucleiTool().build_command({
+        nuclei_command = NucleiTool().build_command({
             "targets": ["https://api.example.com"]
         })
+        assert "https://api.example.com" in nuclei_command
+        assert nuclei_command[nuclei_command.index("https://api.example.com") - 1] == "-target"
         httpx_command = HttpxTool().build_command({
             "targets": ["https://api.example.com"]
         })

@@ -883,12 +883,8 @@ Metrics → KPI
 
 KPIs measure program performance:
 
-- Asset discovery coverage
 - Scan completion rate
 - Vulnerability remediation rate
-- Mean time to remediation
-- Asset classification coverage
-- Policy compliance rate
 - Scan success rate
 
 ## U — Review KRI
@@ -904,12 +900,10 @@ KRIs measure risk exposure:
 - Critical internet-facing assets
 - Critical vulnerability exposure
 - High-risk asset percentage
-- Attack-surface growth
 - Newly exposed assets
 - Unmanaged assets
 - STRIDE distribution
 - High-risk attack paths
-- Policy violations
 - Open high-severity CVEs
 
 ## V — Configure Continuous Monitoring
@@ -968,7 +962,6 @@ Alerts can be generated for:
 
 - New critical findings
 - Very high-risk assets
-- Policy violations
 
 Acknowledge an alert after it has been reviewed.
 

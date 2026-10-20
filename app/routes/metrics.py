@@ -23,8 +23,7 @@ def kpi():
 def kri():
     org_id = current_org()
     kris = all_kris(org_id)
-    hist_keys = ("high_risk_asset_percentage", "attack_surface_growth",
-                 "critical_vulnerability_exposure")
+    hist_keys = ("high_risk_asset_percentage", "critical_vulnerability_exposure")
     history = {k: metric_history(org_id, k, "kri") for k in hist_keys}
     stride_dist = next((k for k in kris if k["key"] == "stride_risk_distribution"), {})
     return render_template("metrics/kri.html", kris=kris, history=history,

@@ -12,7 +12,7 @@
       <input name="target" value="{{ form.target }}" placeholder="e.g. 203.0.113.20" required>
       <label>Tool</label>
       <select name="tool">
-        {% for t in ['amass','subfinder','dnsx','nmap','naabu','httpx','nuclei','zap','openvas'] %}
+        {% for t in ['subfinder','dnsx','nmap','naabu','httpx','nuclei','zap','openvas'] %}
         <option value="{{ t }}" {{ 'selected' if form.tool == t }}>{{ t }}</option>
         {% endfor %}
       </select>

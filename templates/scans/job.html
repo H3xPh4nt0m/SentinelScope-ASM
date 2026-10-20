@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Job #{{ job.id }} — {{ app_name }}{% endblock %}
-{% block heading %}Scan Job #{{ job.id }} <span class="badge {{ {'completed':'sev-low','failed':'sev-critical','running':'sev-medium','queued':'sev-info','cancelled':'sev-info'}[job.status] }}">{{ job.status }}</span>{% endblock %}
+{% block heading %}Scan Job #{{ job.id }} <span id="job-status" class="badge {{ {'completed':'sev-low','failed':'sev-critical','running':'sev-medium','queued':'sev-info','cancelled':'sev-info'}[job.status] }}">{{ job.status }}</span>{% endblock %}
 {% block content %}
 <div class="grid-2">
   <div class="panel">
@@ -52,6 +52,7 @@
 <div class="panel">
   <h2>Live Tool Output</h2>
   <p class="muted">Output is bounded to the latest 200 lines and updates while the job is queued or running.</p>
+  <p id="job-phase" class="muted" style="margin:0 0 6px">Phase: {{ (job.result_summary or {}).get('phase') or ('queued' if job.status == 'queued' else job.status) }}</p>
   <div class="bar-track" style="height:10px;margin-bottom:10px"><div id="job-progress" class="bar-fill sev-medium" style="width:{{ job.progress or 0 }}%"></div></div>
   <pre id="job-output" style="height:260px;overflow:auto;background:#070b10;color:#9ee493">{% for line in (job.result_summary or {}).get('output', []) %}{{ line }}
 {% endfor %}</pre>
@@ -83,17 +84,26 @@
   const terminal = document.getElementById('job-output');
   const progress = document.getElementById('job-progress');
   const terminalStates = ['completed', 'failed', 'cancelled'];
+  let lastOutput = '';
   async function pollJob() {
     try {
-      const response = await fetch('{{ url_for("scans.status", job_id=job.id) }}', {headers: {'Accept': 'application/json'}});
-      if (!response.ok) return;
+      const response = await fetch('{{ url_for("scans.status", job_id=job.id) }}', {headers: {'Accept': 'application/json'}, cache: 'no-store'});
+      if (!response.ok) { setTimeout(pollJob, 3000); return; }
       const data = await response.json();
       if (progress) progress.style.width = `${data.progress || 0}%`;
-      if (terminal) {
-        terminal.textContent = (data.output || []).join('\n');
-        terminal.scrollTop = terminal.scrollHeight;
+      const statusEl = document.getElementById('job-status');
+      if (statusEl) statusEl.textContent = data.status;
+      const phaseEl = document.getElementById('job-phase');
+      if (phaseEl) phaseEl.textContent = `Phase: ${data.phase || data.status}`;
+      const output = (data.output || []).join('\n');
+      if (terminal && output !== lastOutput) {
+        const nearBottom = terminal.scrollTop + terminal.clientHeight >= terminal.scrollHeight - 24;
+        terminal.textContent = output;
+        lastOutput = output;
+        if (nearBottom) terminal.scrollTop = terminal.scrollHeight;
       }
-      if (!terminalStates.includes(data.status)) setTimeout(pollJob, 1500);
+      if (!terminalStates.includes(data.status)) setTimeout(pollJob, 1000);
+      else window.location.reload();
     } catch (_) { setTimeout(pollJob, 3000); }
   }
   if (!terminalStates.includes('{{ job.status }}')) pollJob();

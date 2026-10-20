@@ -259,7 +259,7 @@ STRIDE engine → Risk engine → KPI/KRI → Alerts → Dashboards/Reports
 | **Correlation** | `app/services/correlation.py` | assets upsert, relationships, finding dedup (§5.6) |
 | **STRIDE engine** | `app/stride/engine.py` | 7 threat rules (§6) |
 | **Risk engine** | `app/risk/` | 7-component score (§5.1), attack paths (§5.3) |
-| **KPI/KRI engines** | `app/metrics/` | 7 KPIs + 10 KRIs (§5.4–5.5) |
+| **KPI/KRI engines** | `app/metrics/` | 3 KPIs + 8 KRIs (§5.4–5.5) |
 | **Monitoring** | `app/monitoring/` | scheduler thread, cycles, alerts (§11) |
 | **LLM** | `app/llm/` | client + orchestrator (§10) |
 | **Audit** | `app/audit/` | every decision recorded |
@@ -380,12 +380,8 @@ KPI = Key Performance Indicator → "How well are we DOING our security work?" (
 
 | # | KPI | Formula | Default when no data |
 |---|---|---|---|
-| 1 | Asset Discovery Coverage | `discovered_assets / expected_assets × 100` where `expected = 20 × #domains_in_policy_scope` | 100% if no policy |
 | 2 | Scan Completion Rate | `jobs_completed / (jobs_completed + failed + cancelled) × 100` | 100% |
 | 3 | Vulnerability Remediation Rate | `findings_closed / findings_total × 100` where closed = resolved ∪ risk_accepted ∪ false_positive | 0% |
-| 4 | Mean Time To Remediation (MTTR) | `mean(resolved_at − first_seen) in hours` over resolved findings | 0 h |
-| 5 | Asset Classification Coverage | `assets_with(criticality ∧ owner) / countable_assets × 100` | 0% |
-| 6 | Policy Compliance Rate | `actions_result_ok / actions_total × 100` over scan_create + llm_action audit rows, 30-day window | 100% |
 | 7 | Scan Success Rate | `jobs_completed / (completed + failed) × 100` | 100% |
 
 All results are rounded to 1 decimal. Every KPI value is displayed **together with its
@@ -395,7 +391,7 @@ formula and inputs** on `/metrics/kpi` (transparency requirement).
 
 KRI = Key Risk Indicator → "How much DANGER are we in right now?" (measures risk)
 
-- Example: Critical Internet-Facing Assets = 6, Open Critical CVEs = 24, Policy Violations = 3
+- Example: Critical Internet-Facing Assets = 6, Open Critical CVEs = 24
 - Answers: How exposed are we? How many dangerous things exist?
 - High = bad. You want these down. → /metrics/kri
 
@@ -406,12 +402,10 @@ KRI = Key Risk Indicator → "How much DANGER are we in right now?" (measures ri
 | 1 | Critical Internet-Facing Assets | `count(active ∧ exposure=internet ∧ criticality ∈ {high, critical})` | — |
 | 2 | Critical Vulnerability Exposure | `count(open ∧ severity=critical ∧ asset.exposure=internet)` | — |
 | 3 | High-Risk Asset Percentage | `count(score ≥ 70) / active_assets × 100` | — |
-| 4 | Attack Surface Growth | `(new − removed) / current_active × 100` | 30 days |
 | 5 | Newly Exposed Assets | `count(active ∧ internet ∧ first_seen ≥ now−7d)` | 7 days |
 | 6 | Unmanaged Assets | `count(active ∧ (owner="" ∨ criticality NULL))` | — |
 | 7 | STRIDE Risk Distribution | `count(threats) grouped by category (S/T/R/I/D/E)` | — |
 | 8 | High-Risk Attack Paths | `count(paths with score ≥ 70)` | — |
-| 9 | Policy Violations | `count(audit rows with result=denied)` | 30 days |
 | 10 | Open High-Severity CVEs | `count(open ∧ cve ≠ NULL ∧ severity ∈ {high, critical})` | — |
 
 
@@ -510,15 +504,18 @@ SecurityTool
 ├── version()        → cached version string
 ├── validate(params) → adapter-level parameter check (blocks flag injection)
 ├── build_command()  → argv ARRAY (never a shell string)
-├── execute()        → subprocess.run(argv, shell=False, timeout=600)
+├── execute()        → run_command(argv, shell=False, timeout=…) in its own process group
 └── normalize()      → raw output → structured records
 ```
 
 **Safety guarantees:** no shell interpretation is possible (argv arrays), targets can't
-start with `-` (flag injection blocked), timeouts enforced, output captured. Adding a new
+start with `-` (flag injection blocked), timeouts terminate the tool's whole process group,
+output is captured. A timed-out run is never reported as successful, even if it wrote a
+partial report. Cancelling a running job marks it cancelled and prevents the job from
+being marked completed, but does not interrupt the process that is already running. Adding a new
 tool = one adapter file — no core changes.
 
-### 7.2 The nine integrated tools
+### 7.2 Integrated tools (core + optional extensions)
 
 | Tool | Operation | Intrusiveness | Command built | Output parsed |
 |---|---|---|---|---|
@@ -529,7 +526,15 @@ tool = one adapter file — no core changes.
 | **naabu** | port_scan | **active** | `naabu -host <target> [-p ports] -silent` | host:port |
 | **httpx** | web_probe / tech_detection | passive | Kali executable `httpx-toolkit -j -title -td -sc -ip -fr -silent -u <target>` | live URLs, status, title, technologies, webserver |
 | **nuclei** | vulnerability_scan | **active** | `nuclei -jsonl -silent -nc [-severity sev1,sev2] [-t templates]` | findings: template, severity, CVE, CVSS, description, evidence |
-| **zap** | vulnerability_scan | **active** | `zap.sh -cmd -quickurl <target> -quickout <report.json> -quickprogress` | structured JSON/XML alerts → normalized findings |
+| **zap** | vulnerability_scan | **active** | `zap.sh -dir <isolated-home> -cmd -quickurl <target> -quickout <report.json> -quickprogress` | structured JSON/XML alerts → normalized findings; isolated home per job |
+| **katana** | web_crawl | **active** | `katana -u <target> -json -silent` | endpoint assets |
+| **waybackurls / gau / waymore** | url_discovery | passive | domain input (stdin/CLI) | historical URL endpoint assets |
+| **ffuf** | directory_scan | **active** | URL + wordlist + JSON output | endpoint assets |
+| **dalfox** | xss_scan | **active** | URL JSON scan | XSS findings |
+| **subzy** | subdomain_takeover | **active** | subdomain check | takeover findings |
+| **puredns** | dns_enumeration | active | DNS resolution | subdomain assets |
+| **xingfinger** | fingerprint_identification | passive | URL fingerprinting | technology metadata |
+| **playwright** | site_screenshot | active | headless screenshot | screenshot metadata |
 | **openvas** | nasl_scan | **active** | requires GVM daemon | (adapter stub — reports "requires configuration") |
 
 Check availability any time: **Scans → Tool Status** (name, installed ✓/✗, version, path).
@@ -938,7 +943,7 @@ retirement workflow after confirming retention requirements.
 ---
 
 *Manual generated 2026-10-02 from a full source analysis of SentinelScope ASM —
-60 endpoints, 24 tables, 7 STRIDE rules, 9 tool adapters, 7 KPIs, 10 KRIs,
+60 endpoints, 24 tables, 7 STRIDE rules, 9 tool adapters, 3 KPIs, 8 KRIs,
 45 automated tests passing. Formulas quoted verbatim from
 `app/risk/engine.py`, `app/risk/attack_paths.py`, `app/metrics/kpi.py`,
 `app/metrics/kri.py`, `app/stride/engine.py`, `app/services/correlation.py`.*

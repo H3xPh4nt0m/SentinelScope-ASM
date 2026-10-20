@@ -54,6 +54,7 @@ class ScanJob(db.Model):
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "finished_at": self.finished_at.isoformat() if self.finished_at else None,
             "output": (self.result_summary or {}).get("output", [])[-200:],
+            "phase": (self.result_summary or {}).get("phase"),
             "result_summary": self.result_summary or {},
             "command": self.command or [],
             "error": self.error,

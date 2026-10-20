@@ -127,7 +127,8 @@ class TestKpiKri:
         kpis = {k["key"]: k for k in all_kpis(org.id)}
         assert "scan_completion_rate" in kpis
         assert "vulnerability_remediation_rate" in kpis
-        assert kpis["asset_discovery_coverage"]["value"] >= 0
+        assert set(kpis) == {"scan_completion_rate", "vulnerability_remediation_rate",
+                              "scan_success_rate"}
 
     def test_remediation_rate_counts_resolved(self, app, db, org):
         from app.metrics.kpi import vulnerability_remediation_rate

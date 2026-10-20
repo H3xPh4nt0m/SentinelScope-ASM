@@ -47,7 +47,7 @@ TOOL_FOR_OPERATION = {
     "service_detection": "nmap",
     "web_probe": "httpx",
     "vulnerability_scan": "nuclei",
-    "passive_recon": "amass",
+    "passive_recon": "subfinder",
     "tech_detection": "httpx",
     "web_crawl": "katana", "url_discovery": "waybackurls",
     "xss_scan": "dalfox", "subdomain_takeover": "subzy",

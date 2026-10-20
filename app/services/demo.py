@@ -29,7 +29,6 @@ Name: Demo Organization
 - 203.0.113.0/24
 
 ## Allowed Tools
-- amass
 - subfinder
 - dnsx
 - nmap

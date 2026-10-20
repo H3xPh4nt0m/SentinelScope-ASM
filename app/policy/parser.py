@@ -51,7 +51,7 @@ KNOWN_INTRUSIVENESS = {"subdomain_discovery": "passive", "dns_enumeration": "pas
                        "subdomain_takeover": "active", "fingerprint_identification": "passive",
                        "site_screenshot": "active", "directory_scan": "active",
                        "nasl_scan": "active"}
-KNOWN_TOOLS = {"amass", "subfinder", "dnsx", "nmap", "naabu", "httpx", "nuclei",
+KNOWN_TOOLS = {"subfinder", "dnsx", "nmap", "naabu", "httpx", "nuclei",
                "zap", "openvas", "katana", "waybackurls", "gau", "dalfox", "subzy",
                "puredns", "waymore", "ffuf", "xingfinger", "playwright"}
 

@@ -1,7 +1,8 @@
 """Tool discovery/status tests, including Kali's httpx-toolkit naming."""
 
 from app.scanners import base
-from app.scanners.web import HttpxTool
+from app.scanners.web import HttpxTool, ZapTool
+from app.scanners.crawling import WaymoreTool, SubzyTool
 
 
 class TestKaliHttpxResolution:
@@ -71,3 +72,25 @@ class TestToolStatusCache:
         finally:
             base.REGISTRY = old_registry
             base.clear_tool_status_cache()
+
+
+class TestExternalToolVersionFlags:
+    def test_waymore_version_flag(self):
+        assert WaymoreTool.version_flag == ("--version",)
+
+    def test_zap_version_flag(self):
+        assert ZapTool.version_flag == ("-version",)
+
+    def test_subzy_version_flag(self):
+        assert SubzyTool.version_flag == ("version",)
+
+    def test_waymore_version_uses_installed_package_metadata(self, monkeypatch):
+        monkeypatch.setattr(WaymoreTool, "is_available", lambda _self: True)
+        monkeypatch.setattr("importlib.metadata.version", lambda _name: "3.7")
+        assert WaymoreTool().version() == "waymore 3.7"
+
+    def test_zap_version_is_not_treated_as_missing_when_script_writes_stderr(self, monkeypatch):
+        monkeypatch.setattr(ZapTool, "is_available", lambda _self: True)
+        monkeypatch.setattr("app.scanners.base.subprocess.run", lambda *a, **k:
+                            type("Result", (), {"stdout": "", "stderr": "OWASP ZAP 2.17.0"})())
+        assert ZapTool().version() == "OWASP ZAP 2.17.0"

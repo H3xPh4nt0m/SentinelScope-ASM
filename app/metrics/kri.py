@@ -1,13 +1,8 @@
 """KRI engine — risk exposure indicators for the organization."""
-from datetime import timedelta
-
-from app.extensions import db
 from app.models.asset import Asset
-from app.models.audit import AuditLog
 from app.models.finding import Finding
 from app.models.risk import AttackPath
 from app.models.stride import STRIDEThreat, STRIDE_CATEGORIES
-from app.utils import utcnow
 
 
 def critical_internet_facing(organization_id: int) -> dict:
@@ -22,8 +17,7 @@ def critical_internet_facing(organization_id: int) -> dict:
 def critical_vulnerability_exposure(organization_id: int) -> dict:
     count = (Finding.query.join(Asset, Finding.asset_id == Asset.id)
              .filter(Finding.organization_id == organization_id,
-                     Finding.status == "open",
-                     Finding.severity == "critical",
+                     Finding.status == "open", Finding.severity == "critical",
                      Asset.exposure == "internet").count())
     return {"key": "critical_vulnerability_exposure", "value": count, "unit": "findings",
             "formula": "count(open critical findings on internet-facing assets)"}
@@ -32,29 +26,16 @@ def critical_vulnerability_exposure(organization_id: int) -> dict:
 def high_risk_asset_percentage(organization_id: int) -> dict:
     total = Asset.query.filter_by(organization_id=organization_id, status="active").count()
     high = Asset.query.filter(Asset.organization_id == organization_id,
-                              Asset.status == "active",
-                              Asset.risk_score >= 70).count()
+                              Asset.status == "active", Asset.risk_score >= 70).count()
     value = round(high / total * 100, 1) if total else 0.0
     return {"key": "high_risk_asset_percentage", "value": value, "unit": "%",
             "high_risk": high, "total": total,
-            "formula": "High-risk assets (score ≥ 70) / Total assets × 100"}
-
-
-def attack_surface_growth(organization_id: int, days: int = 30) -> dict:
-    since = utcnow() - timedelta(days=days)
-    current = Asset.query.filter_by(organization_id=organization_id, status="active").count()
-    new = Asset.query.filter(Asset.organization_id == organization_id,
-                             Asset.first_seen >= since).count()
-    removed = Asset.query.filter(Asset.organization_id == organization_id,
-                                 Asset.status == "removed").count()
-    growth = round((new - removed) / current * 100, 1) if current else 0.0
-    return {"key": "attack_surface_growth", "value": growth, "unit": "%",
-            "new_assets": new, "removed_assets": removed, "current": current,
-            "window_days": days,
-            "formula": "(new - removed) / current × 100 over window"}
+            "formula": "High-risk assets (score ≥ 70) / Active assets × 100"}
 
 
 def newly_exposed_assets(organization_id: int, days: int = 7) -> dict:
+    from datetime import timedelta
+    from app.utils import utcnow
     since = utcnow() - timedelta(days=days)
     count = Asset.query.filter(Asset.organization_id == organization_id,
                                Asset.status == "active", Asset.exposure == "internet",
@@ -91,16 +72,6 @@ def high_risk_attack_paths(organization_id: int, threshold: int = 70) -> dict:
             "formula": f"count(attack paths with score ≥ {threshold})"}
 
 
-def policy_violations(organization_id: int, days: int = 30) -> dict:
-    since = utcnow() - timedelta(days=days)
-    count = AuditLog.query.filter(AuditLog.organization_id == organization_id,
-                                  AuditLog.created_at >= since,
-                                  AuditLog.result == "denied").count()
-    return {"key": "policy_violations", "value": count, "unit": "actions",
-            "window_days": days,
-            "formula": "count(denied policy/ACL decisions in window)"}
-
-
 def open_high_severity_cves(organization_id: int) -> dict:
     count = (Finding.query.filter(Finding.organization_id == organization_id,
                                   Finding.status == "open", Finding.cve.isnot(None),
@@ -114,11 +85,9 @@ def all_kris(organization_id: int) -> list[dict]:
         critical_internet_facing(organization_id),
         critical_vulnerability_exposure(organization_id),
         high_risk_asset_percentage(organization_id),
-        attack_surface_growth(organization_id),
         newly_exposed_assets(organization_id),
         unmanaged_assets(organization_id),
         stride_risk_distribution(organization_id),
         high_risk_attack_paths(organization_id),
-        policy_violations(organization_id),
         open_high_severity_cves(organization_id),
     ]

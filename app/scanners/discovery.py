@@ -1,4 +1,4 @@
-"""Discovery tool adapters: subfinder, amass, dnsx."""
+"""Discovery tool adapters: subfinder, dnsx."""
 import re
 
 from app.scanners.base import SecurityTool
@@ -23,32 +23,6 @@ class SubfinderTool(SecurityTool):
         for line in raw_result.splitlines():
             host = line.strip().lower()
             if host and "." in host and " " not in host:
-                out.append({"asset_type": "subdomain", "name": host,
-                            "hostname": host, "parent": parameters.get("domain")})
-        return out
-
-
-class AmassTool(SecurityTool):
-    name = "amass"
-    binary = "amass"
-    version_flag = ("-version",)
-    META = {"operation": "subdomain_discovery", "intrusiveness": "passive",
-            "output": "subdomains"}
-
-    def validate(self, parameters: dict) -> tuple[bool, str]:
-        if not parameters.get("domain"):
-            return False, "missing 'domain' parameter"
-        return True, ""
-
-    def build_command(self, parameters: dict) -> list[str]:
-        # Passive enumeration only (enum -passive) — policy friendly.
-        return ["enum", "-passive", "-d", parameters["domain"]]
-
-    def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
-        out = []
-        for line in raw_result.splitlines():
-            host = line.strip().lower()
-            if host and "." in host and " " not in host and not host.startswith("["):
                 out.append({"asset_type": "subdomain", "name": host,
                             "hostname": host, "parent": parameters.get("domain")})
         return out
@@ -88,5 +62,4 @@ class DnsxTool(SecurityTool):
 def register_all() -> None:
     from app.scanners.base import register
     register(SubfinderTool())
-    register(AmassTool())
     register(DnsxTool())
