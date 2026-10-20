@@ -21,5 +21,6 @@
       "Bash(/usr/share/zaproxy/zap.sh -h)",
       "Skill(agent-browser)"
     ]
-  }
+  },
+  "spinnerTipsEnabled": true
 }
