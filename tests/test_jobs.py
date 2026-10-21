@@ -89,6 +89,21 @@ def test_live_output_updates_progress_while_running(app, db, org):
     assert stored.to_dict()["phase"] == "active scanning"
 
 
+def test_command_line_survives_live_output_and_completion(app, db, org):
+    job = _queued_job(db, org, tool="nuclei")
+    job.status = "running"
+    db.session.commit()
+    summary = dict(job.result_summary or {})
+    summary["command_line"] = "$ nuclei -target x"
+    job.result_summary = summary
+    db.session.commit()
+    jobs._persist_live_output(job.id, ["line one"], 10, "active scanning")
+    db.session.expire_all()
+    stored = db.session.get(ScanJob, job.id)
+    assert stored.to_dict()["command_line"] == "$ nuclei -target x"
+    assert stored.to_dict()["output"] == ["line one"]
+
+
 def test_live_output_is_not_written_after_job_leaves_running(app, db, org):
     job = _queued_job(db, org, tool="nuclei")
     job.status = "cancelled"

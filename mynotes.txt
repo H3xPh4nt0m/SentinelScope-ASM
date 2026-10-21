@@ -1,1 +1,3 @@
 ASM Session 1 : claude --resume 0b6f5a8b-116a-4e59-b5bd-85212509b965
+
+kiro_session 1: kiro-cli --resume-id fdda0f77-69a9-4994-b181-542a41f7e9a1

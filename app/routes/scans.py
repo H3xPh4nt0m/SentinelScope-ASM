@@ -68,7 +68,7 @@ def new():
         target = form["target"].strip().lower()
         if operation == "vulnerability_scan":
             requested_tools = form["tool"] or None
-        elif operation in ("tech_detection", "fingerprint_identification"):
+        elif operation == "tech_detection":
             requested_tools = form["tools"] or form["tool"] or None
         else:
             requested_tools = None
@@ -185,7 +185,7 @@ def _build_parameters(operation: str, form: dict, tool: str | None = None) -> di
     if operation in ("subdomain_discovery", "dns_enumeration", "passive_recon", "url_discovery"):
         return {"domain": target}
     if operation in ("web_crawl", "xss_scan", "subdomain_takeover",
-                     "fingerprint_identification", "site_screenshot", "directory_scan"):
+                     "site_screenshot", "directory_scan"):
         return {"target": target}
     if operation in ("port_scan", "service_detection"):
         return {"target": target, "service_detection": form.get("service_detection", True)}

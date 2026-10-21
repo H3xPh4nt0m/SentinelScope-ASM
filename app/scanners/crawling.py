@@ -53,13 +53,16 @@ class URLHistoryTool(SecurityTool):
             return False, "invalid domain"
         return True, ""
 
-    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None,
+                on_command=None) -> ToolResult:
         if not self.is_available():
             raise ToolUnavailableError(f"tool '{self.name}' is not installed")
         ok, reason = self.validate(parameters)
         if not ok:
             return ToolResult(ok=False, stderr=reason)
         cmd = [self.binary, *self.build_command(parameters)]
+        if on_command:
+            on_command(list(cmd))
         try:
             process = subprocess.run(cmd, input=parameters["domain"] + "\n",
                                     capture_output=True, text=True, timeout=timeout,
@@ -108,8 +111,10 @@ class DalfoxTool(URLTargetTool):
     def build_command(self, parameters: dict) -> list[str]:
         return ["url", "--url", parameters["target"], "--format", "json", "--silence"]
 
-    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
-        result = super().execute(parameters, timeout=timeout, on_output=on_output)
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None,
+                on_command=None) -> ToolResult:
+        result = super().execute(parameters, timeout=timeout, on_output=on_output,
+                                 on_command=on_command)
         if not result.ok and not result.timed_out and result.returncode == 1:
             try:
                 payload = json.loads(result.raw_output)

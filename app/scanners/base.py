@@ -78,22 +78,25 @@ class SecurityTool:
         return []
 
     # ---- execution ----
-    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None,
+                on_command=None) -> ToolResult:
         if not self.is_available():
             raise ToolUnavailableError(f"tool '{self.name}' is not installed")
         ok, reason = self.validate(parameters)
         if not ok:
             return ToolResult(ok=False, stderr=reason)
         cmd = [self.binary, *self.build_command(parameters)]
-        return self.run_command(cmd, timeout=timeout, on_output=on_output)
+        return self.run_command(cmd, timeout=timeout, on_output=on_output, on_command=on_command)
 
     def run_command(self, cmd: list[str], timeout: int = 600, on_output=None,
-                    cwd: str | None = None) -> ToolResult:
+                    cwd: str | None = None, on_command=None) -> ToolResult:
         """Run a safe argv command while streaming bounded output to a callback."""
         try:
             timeout = max(1, int(timeout))
         except (TypeError, ValueError):
             timeout = 600
+        if on_command:
+            on_command(list(cmd))
         process = None
         selector = None
         output = bytearray()

@@ -29,7 +29,7 @@ the platform reports to you.
 action plans for the small set of allowed scanner operations; the backend \
 validates and enforces them.
 - Sensitive credentials must never be displayed, repeated, or transmitted.
-- Technology detection may use httpx, webanalyze, or whatweb; Nuclei is a finding source unless an explicit technology-template mode is requested.
+- Technology detection may use httpx, webanalyze, or whatweb; Nuclei is a finding source for vulnerability_scan.
 
 When the user asks for an operational action, respond ONLY with a JSON object. Use a singular `tool` or a `tools` list when multiple independent technology jobs are requested:
 {"intent": "<short_intent_key>", "actions": [{"tool": "<tool>", "tools": ["<tool>", ...], "operation": \
@@ -40,7 +40,7 @@ Otherwise answer in plain markdown text. Keep answers concise and factual."""
 ALLOWED_OPERATIONS = ("subdomain_discovery", "dns_enumeration", "port_scan",
                       "service_detection", "web_probe", "vulnerability_scan",
                       "passive_recon", "tech_detection", "web_crawl", "url_discovery",
-                      "xss_scan", "subdomain_takeover", "fingerprint_identification",
+                      "xss_scan", "subdomain_takeover",
                       "site_screenshot", "directory_scan")
 
 

@@ -97,7 +97,6 @@ Name: Test Org
 - vulnerability_scan
 - subdomain_discovery
 - tech_detection
-- fingerprint_identification
 
 ## Restricted Operations
 - brute_force

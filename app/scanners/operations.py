@@ -13,7 +13,6 @@ OPERATION_TOOLS = {
     "url_discovery": ("waybackurls",),
     "xss_scan": ("dalfox",),
     "subdomain_takeover": ("subzy",),
-    "fingerprint_identification": ("webanalyze", "whatweb", "httpx", "nuclei"),
     "site_screenshot": ("playwright",),
     "directory_scan": ("ffuf",),
 }
@@ -31,7 +30,6 @@ _OPERATION_DEFAULTS = {
     "url_discovery": ("waybackurls", {"domain": ""}),
     "xss_scan": ("dalfox", {"target": ""}),
     "subdomain_takeover": ("subzy", {"target": ""}),
-    "fingerprint_identification": ("webanalyze", {"target": ""}),
     "site_screenshot": ("playwright", {"target": ""}),
     "directory_scan": ("ffuf", {"target": ""}),
 }
@@ -89,7 +87,7 @@ def parameters_for_tool(operation: str, tool: str, target, base: dict | None = N
     first_target = targets[0] if targets else ""
     domain_operations = {"subdomain_discovery", "dns_enumeration", "passive_recon",
                          "url_discovery"}
-    technology_operations = {"web_probe", "tech_detection", "fingerprint_identification"}
+    technology_operations = {"web_probe", "tech_detection"}
     if operation in domain_operations:
         parameters["domain"] = first_target
         parameters.pop("target", None)
@@ -110,7 +108,4 @@ def parameters_for_tool(operation: str, tool: str, target, base: dict | None = N
     else:
         parameters["target"] = first_target
         parameters.pop("targets", None)
-    if tool == "nuclei" and operation == "fingerprint_identification":
-        parameters["mode"] = "technology"
-        parameters.setdefault("tags", ["tech"])
     return parameters

@@ -78,7 +78,7 @@ class WebAnalyzeTool(SecurityTool):
     name = "webanalyze"
     binary = "webanalyze"
     version_flag = ()
-    META = {"operation": "fingerprint_identification", "intrusiveness": "passive",
+    META = {"operation": "tech_detection", "intrusiveness": "passive",
             "output": "technologies"}
 
     def __init__(self, **overrides):
@@ -105,10 +105,12 @@ class WebAnalyzeTool(SecurityTool):
         target = parameters.get("target") or _first_target(parameters.get("targets"))
         return ["-host", str(target), "-output", "json", "-silent"]
 
-    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None,
+                on_command=None) -> ToolResult:
         targets = parameters.get("targets") or [parameters.get("target")]
         if len(targets) <= 1:
-            return super().execute(parameters, timeout=timeout, on_output=on_output)
+            return super().execute(parameters, timeout=timeout, on_output=on_output,
+                                   on_command=on_command)
         if not self.is_available():
             raise ToolUnavailableError("tool 'webanalyze' is not installed")
         ok, reason = self.validate(parameters)
@@ -118,7 +120,8 @@ class WebAnalyzeTool(SecurityTool):
             hosts_path = Path(workdir) / "targets.txt"
             hosts_path.write_text("\\n".join(targets) + "\\n", encoding="utf-8")
             cmd = [self.binary, "-hosts", str(hosts_path), "-output", "json", "-silent"]
-            return self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
+            return self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir,
+                                    on_command=on_command)
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
         records = []
@@ -142,7 +145,7 @@ class WhatWebTool(SecurityTool):
     name = "whatweb"
     binary = "whatweb"
     version_flag = ("--version",)
-    META = {"operation": "fingerprint_identification", "intrusiveness": "passive",
+    META = {"operation": "tech_detection", "intrusiveness": "passive",
             "output": "technologies"}
 
     def __init__(self, **overrides):
@@ -166,7 +169,8 @@ class WhatWebTool(SecurityTool):
         return ["--quiet", "--no-errors", f"--log-json={report_path}",
                 *(str(target) for target in targets)]
 
-    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None,
+                on_command=None) -> ToolResult:
         if not self.is_available():
             raise ToolUnavailableError("tool 'whatweb' is not installed")
         ok, reason = self.validate(parameters)
@@ -177,7 +181,8 @@ class WhatWebTool(SecurityTool):
             params = dict(parameters)
             params["report_path"] = report_path
             cmd = [self.binary, *self.build_command(params)]
-            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
+            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir,
+                                      on_command=on_command)
             report_file = Path(report_path)
             report = report_file.read_text(encoding="utf-8", errors="replace") \
                 if report_file.is_file() else ""
@@ -340,7 +345,8 @@ class ZapTool(SecurityTool):
         return ["-cmd", "-quickurl", self._target(parameters), "-quickout", report_path,
                 "-quickprogress"]
 
-    def execute(self, parameters: dict, timeout: int = 900, on_output=None) -> ToolResult:
+    def execute(self, parameters: dict, timeout: int = 900, on_output=None,
+                on_command=None) -> ToolResult:
         try:
             timeout = int(timeout)
         except (TypeError, ValueError):
@@ -360,7 +366,8 @@ class ZapTool(SecurityTool):
             zap_home = str(Path(workdir) / "zap-home")
             Path(zap_home).mkdir()
             cmd = [self.binary, "-dir", zap_home, *self.build_command(params)]
-            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
+            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir,
+                                      on_command=on_command)
             report = ""
             report_file = Path(report_path)
             if report_file.is_file():

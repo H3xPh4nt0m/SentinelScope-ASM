@@ -6,6 +6,7 @@ inside an app context so the scoped SQLAlchemy session is thread-safe.
 """
 import logging
 import re
+import shlex
 import threading
 import time
 
@@ -226,10 +227,17 @@ def _run_job(app, job: ScanJob) -> None:
                     pending_lines = 0
                     last_flush = now
 
+            def on_command(argv: list[str]) -> None:
+                summary = dict(job.result_summary or {})
+                summary["command_line"] = "$ " + shlex.join(argv)
+                job.result_summary = summary
+                _persist_live_output(job.id, output_lines, job.progress, result_phase[0])
+
             if _job_status(job.id) == "cancelled":
                 _mark_cancelled_finished(job.id)
                 return
-            result = tool.execute(job.parameters or {}, timeout=timeout, on_output=on_output)
+            result = tool.execute(job.parameters or {}, timeout=timeout, on_output=on_output,
+                                  on_command=on_command)
             if pending_lines:
                 _persist_live_output(job.id, output_lines, job.progress, result_phase[0])
             command = result.command or command
@@ -247,6 +255,8 @@ def _run_job(app, job: ScanJob) -> None:
 
             records = tool.normalize(result.raw_output, job.parameters or {})
             summary = ingest_tool_records(job.organization_id, records, job)
+            if "command_line" in (job.result_summary or {}):
+                summary["command_line"] = job.result_summary["command_line"]
             # A completed scan must update the analytical views that consume its
             # findings; this is especially important for ZAP alerts.
             from app.monitoring.scheduler import run_all_updates

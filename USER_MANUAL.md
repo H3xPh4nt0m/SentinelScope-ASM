@@ -524,10 +524,10 @@ tool = one adapter file — no core changes.
 | **dnsx** | dns_enumeration | passive | `dnsx -d <domain> -a -resp [-t types]` | hosts + DNS records |
 | **nmap** | port_scan | **active** | `nmap -Pn -n --open [-sV] [-p ports] <target>` | host:port + service name/version |
 | **naabu** | port_scan | **active** | `naabu -host <target> [-p ports] -silent` | host:port |
-| **httpx** | web_probe / tech_detection / fingerprint_identification | passive | Kali executable `httpx-toolkit -j -title -td -sc -ip -fr -silent -u <target>` | live URLs, status, title, technologies, webserver |
-| **webanalyze** | tech_detection / fingerprint_identification | passive | `webanalyze -host <target> -output json -silent` | Wappalyzer-compatible technology matches |
-| **whatweb** | tech_detection / fingerprint_identification | passive | `whatweb --quiet --no-errors --log-json=<temporary-file> <target>` | plugin technology metadata |
-| **nuclei** | vulnerability_scan / explicit technology mode | **active** | `nuclei -jsonl -silent -nc [-severity sev1,sev2] [-tags tech] [-t templates]` | findings or explicit technology-template records |
+| **httpx** | web_probe / tech_detection | passive | Kali executable `httpx-toolkit -j -title -td -sc -ip -fr -silent -u <target>` | live URLs, status, title, technologies, webserver |
+| **webanalyze** | tech_detection | passive | `webanalyze -host <target> -output json -silent` | Wappalyzer-compatible technology matches |
+| **whatweb** | tech_detection | passive | `whatweb --quiet --no-errors --log-json=<temporary-file> <target>` | plugin technology metadata |
+| **nuclei** | vulnerability_scan | **active** | `nuclei -jsonl -silent -nc [-severity sev1,sev2] [-tags tech] [-t templates]` | findings |
 | **zap** | vulnerability_scan | **active** | `zap.sh -dir <isolated-home> -cmd -quickurl <target> -quickout <report.json> -quickprogress` | structured JSON/XML alerts → normalized findings; isolated home per job |
 | **katana** | web_crawl | **active** | `katana -u <target> -json -silent` | endpoint assets |
 | **waybackurls / gau / waymore** | url_discovery | passive | domain input (stdin/CLI) | historical URL endpoint assets |

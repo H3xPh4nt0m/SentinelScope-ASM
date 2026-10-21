@@ -40,7 +40,7 @@ KNOWN_OPERATIONS = {
     "subdomain_discovery", "dns_enumeration", "port_scan", "service_detection",
     "web_probe", "vulnerability_scan", "passive_recon", "tech_detection",
     "web_crawl", "url_discovery", "xss_scan", "subdomain_takeover",
-    "fingerprint_identification", "site_screenshot", "directory_scan", "nasl_scan",
+    "site_screenshot", "directory_scan", "nasl_scan",
 }
 KNOWN_INTRUSIVENESS = {"subdomain_discovery": "passive", "dns_enumeration": "passive",
                        "passive_recon": "passive", "web_probe": "passive",
@@ -48,7 +48,7 @@ KNOWN_INTRUSIVENESS = {"subdomain_discovery": "passive", "dns_enumeration": "pas
                        "port_scan": "active", "service_detection": "active",
                        "vulnerability_scan": "active", "web_crawl": "active",
                        "url_discovery": "passive", "xss_scan": "active",
-                       "subdomain_takeover": "active", "fingerprint_identification": "passive",
+                       "subdomain_takeover": "active",
                        "site_screenshot": "active", "directory_scan": "active",
                        "nasl_scan": "active"}
 KNOWN_TOOLS = {"subfinder", "dnsx", "nmap", "naabu", "httpx", "nuclei",

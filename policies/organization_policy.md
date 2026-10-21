@@ -43,13 +43,11 @@ Name: Example Organization
 - web_probe
 - vulnerability_scan
 - tech_detection
-- fingerprint_identification
 - passive_recon
 - web_crawl
 - url_discovery
 - xss_scan
 - subdomain_takeover
-- fingerprint_identification
 - site_screenshot
 - directory_scan
 

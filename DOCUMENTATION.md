@@ -471,7 +471,7 @@ Failures at any layer produce a **clear reason + audit entry**, and no process s
 
 **Operations available:** `subdomain_discovery` (subfinder/amass), `dns_enumeration`
 (dnsx), `port_scan` (nmap/naabu), `service_detection` (nmap -sV), `web_probe` (httpx),
-`vulnerability_scan` (nuclei or **zap**), `passive_recon` (subfinder), `tech_detection` (httpx, webanalyze, or whatweb), `fingerprint_identification` (webanalyze, whatweb, httpx, or explicit Nuclei technology templates).
+`vulnerability_scan` (nuclei or **zap**), `passive_recon` (subfinder), `tech_detection` (httpx, webanalyze, or whatweb).
 
 For ZAP: install `sudo apt update && sudo apt install -y zaproxy`, verify
 `/usr/share/zaproxy/zap.sh -version`, then use **New Scan → vulnerability_scan → zap**.

@@ -51,9 +51,10 @@
 
 <div class="panel">
   <h2>Live Tool Output</h2>
-  <p class="muted">Output is bounded to the latest 200 lines and updates while the job is queued or running.</p>
+  <p class="muted">Full terminal view: the exact command, then the tool's output (latest 200 lines). Updates while the job is queued or running.</p>
   <p id="job-phase" class="muted" style="margin:0 0 6px">Phase: {{ (job.result_summary or {}).get('phase') or ('queued' if job.status == 'queued' else job.status) }}</p>
   <div class="bar-track" style="height:10px;margin-bottom:10px"><div id="job-progress" class="bar-fill sev-medium" style="width:{{ job.progress or 0 }}%"></div></div>
+  <pre id="job-command" class="mono" style="margin:0 0 6px;background:#070b10;color:#e6edf3;white-space:pre-wrap;word-break:break-all">{{ (job.result_summary or {}).get('command_line') or '$ (command starts when the job runs)' }}</pre>
   <pre id="job-output" style="height:260px;overflow:auto;background:#070b10;color:#9ee493">{% for line in (job.result_summary or {}).get('output', []) %}{{ line }}
 {% endfor %}</pre>
 </div>
@@ -95,6 +96,8 @@
       if (statusEl) statusEl.textContent = data.status;
       const phaseEl = document.getElementById('job-phase');
       if (phaseEl) phaseEl.textContent = `Phase: ${data.phase || data.status}`;
+      const commandEl = document.getElementById('job-command');
+      if (commandEl && data.command_line) commandEl.textContent = data.command_line;
       const output = (data.output || []).join('\n');
       if (terminal && output !== lastOutput) {
         const nearBottom = terminal.scrollTop + terminal.clientHeight >= terminal.scrollHeight - 24;

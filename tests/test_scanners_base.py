@@ -42,6 +42,17 @@ def test_carriage_return_progress_updates_are_emitted_separately():
     assert lines == ["[==  ] 25%", "[==== ] 50%", "[======] 100%"]
 
 
+def test_on_command_reports_the_exact_argv_before_output():
+    events = []
+    _CommandTool().execute(
+        {"args": ["-c", "import sys; sys.stdout.write('hi\\n')"]}, timeout=2,
+        on_output=lambda line: events.append(("out", line)),
+        on_command=lambda argv: events.append(("cmd", argv)))
+    assert events[0][0] == "cmd"
+    assert events[0][1][1:] == ["-c", "import sys; sys.stdout.write('hi\\n')"]
+    assert ("out", "hi") in events
+
+
 def test_timeout_terminates_descendants(tmp_path):
     marker = tmp_path / "child-alive"
     script = (

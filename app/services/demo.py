@@ -49,7 +49,6 @@ Name: Demo Organization
 - vulnerability_scan
 - passive_recon
 - tech_detection
-- fingerprint_identification
 
 ## Restricted Operations
 - intrusive_scan
