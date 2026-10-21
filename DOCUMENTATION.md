@@ -471,7 +471,7 @@ Failures at any layer produce a **clear reason + audit entry**, and no process s
 
 **Operations available:** `subdomain_discovery` (subfinder/amass), `dns_enumeration`
 (dnsx), `port_scan` (nmap/naabu), `service_detection` (nmap -sV), `web_probe` (httpx),
-`vulnerability_scan` (nuclei or **zap**), `passive_recon` (amass), `tech_detection` (httpx).
+`vulnerability_scan` (nuclei or **zap**), `passive_recon` (subfinder), `tech_detection` (httpx, webanalyze, or whatweb), `fingerprint_identification` (webanalyze, whatweb, httpx, or explicit Nuclei technology templates).
 
 For ZAP: install `sudo apt update && sudo apt install -y zaproxy`, verify
 `/usr/share/zaproxy/zap.sh -version`, then use **New Scan → vulnerability_scan → zap**.
@@ -507,7 +507,7 @@ Name: Example Organization
 - *.example.com
 ### IP Ranges        # IPv4 CIDRs
 - 203.0.113.0/24
-## Allowed Tools     # from: amass subfinder dnsx nmap naabu httpx nuclei zap openvas
+## Allowed Tools     # from: subfinder dnsx nmap naabu httpx webanalyze whatweb nuclei zap openvas
 - nmap
 ## Allowed Operations
 - port_scan
@@ -720,7 +720,7 @@ Demo users: `demo_analyst` / `demo_author` / `demo_admin` — password `DemoPass
 | `JOB_WORKERS` | background scan workers (default 2) |
 | `SESSION_COOKIE_SECURE` | `1` when serving over HTTPS |
 
-External tools are detected at runtime (nmap/amass/httpx/nuclei are apt/go installs —
+External tools are detected at runtime (nmap/httpx/webanalyze/whatweb/nuclei are apt/go installs —
 hints on the Tool Status page). On Kali, install `httpx-toolkit`: the ASM logical name
 remains `httpx`, but the detected executable is `/usr/bin/httpx-toolkit` (or set
 `HTTPX_BINARY`). Missing tools never fail silently: jobs fail with a clear error and the

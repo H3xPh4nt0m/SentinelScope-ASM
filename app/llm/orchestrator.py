@@ -21,39 +21,15 @@ from app.extensions import db
 from app.llm.client import SYSTEM_PROMPT, ALLOWED_OPERATIONS, LLMError, chat, is_configured
 from app.models.audit import LLMAction, LLMRequest
 from app.policy.engine import evaluate_action
+from app.scanners.operations import (normalize_tools, operation_tools,
+                                     parameters_for_tool, default_tool)
 from app.utils import gen_request_id
 
 log = logging.getLogger("asm.llm")
 
 # operation -> ACL permission required to perform it via the assistant
-OPERATION_ACL = {
-    "subdomain_discovery": "scan:create",
-    "dns_enumeration": "scan:create",
-    "port_scan": "scan:create",
-    "service_detection": "scan:create",
-    "web_probe": "scan:create",
-    "vulnerability_scan": "scan:create",
-    "passive_recon": "scan:create",
-    "tech_detection": "scan:create",
-    "web_crawl": "scan:create", "url_discovery": "scan:create",
-    "xss_scan": "scan:create", "subdomain_takeover": "scan:create",
-    "fingerprint_identification": "scan:create", "site_screenshot": "scan:create",
-    "directory_scan": "scan:create",
-}
-TOOL_FOR_OPERATION = {
-    "subdomain_discovery": "subfinder",
-    "dns_enumeration": "dnsx",
-    "port_scan": "nmap",
-    "service_detection": "nmap",
-    "web_probe": "httpx",
-    "vulnerability_scan": "nuclei",
-    "passive_recon": "subfinder",
-    "tech_detection": "httpx",
-    "web_crawl": "katana", "url_discovery": "waybackurls",
-    "xss_scan": "dalfox", "subdomain_takeover": "subzy",
-    "fingerprint_identification": "xingfinger", "site_screenshot": "playwright",
-    "directory_scan": "ffuf",
-}
+OPERATION_ACL = {operation: "scan:create" for operation in ALLOWED_OPERATIONS}
+TOOL_FOR_OPERATION = {operation: default_tool(operation) for operation in ALLOWED_OPERATIONS}
 
 
 def process_message(user, organization_id: int, message: str) -> dict:
@@ -152,41 +128,37 @@ def _parse_actions(reply: str) -> tuple[str, list[dict]]:
 
 def _validate_and_maybe_execute(user, organization_id: int, action: dict,
                                 record: LLMRequest) -> dict:
-    """Full backend validation chain for one action. Returns a result dict."""
+    """Validate every selected adapter before queueing any sibling jobs."""
     result = {"decision": "denied", "reason": "", "execution_status": "not_executed",
-              "acl": None, "scope": None, "policy": None, "schema": None}
+              "acl": None, "scope": None, "policy": None, "policies": [], "schema": None}
 
-    # 1. Schema validation -----------------------------------------------------
-    tool = str(action.get("tool", "")).strip().lower()
     operation = str(action.get("operation", "")).strip().lower()
     targets = action.get("targets") or []
     if not isinstance(targets, list):
         targets = [targets]
     targets = [str(t).strip() for t in targets if str(t).strip()][:20]
-    parameters = dict(action.get("parameters") or {}) if isinstance(action.get("parameters"), dict) else {}
-    # The backend owns the mapping. ZAP is an explicit, bounded alternative for
-    # vulnerability_scan; no arbitrary binary can be selected by the model.
-    suggested_tool = str(action.get("tool", "")).strip().lower()
-    expected_tool = TOOL_FOR_OPERATION.get(operation)
-    if operation == "vulnerability_scan" and suggested_tool in ("nuclei", "zap"):
-        expected_tool = suggested_tool
-    schema_ok = bool(operation in ALLOWED_OPERATIONS and targets and expected_tool)
-    result["schema"] = {"ok": schema_ok, "operation": operation, "tool_used": expected_tool}
+    base_parameters = (dict(action.get("parameters") or {})
+                       if isinstance(action.get("parameters"), dict) else {})
+    requested = action.get("tools") if "tools" in action else action.get("tool")
+    if isinstance(requested, str) and requested.strip().lower() not in operation_tools(operation):
+        # The model's singular tool claim is advisory; retain the established
+        # backend-owned default mapping for unsupported suggestions.
+        requested = default_tool(operation)
+    try:
+        tools = normalize_tools(operation, requested)
+    except ValueError as exc:
+        result["reason"] = str(exc)
+        result["schema"] = {"ok": False, "operation": operation, "tool_used": None}
+        return result
+    schema_ok = bool(operation in ALLOWED_OPERATIONS and targets and tools)
+    result["schema"] = {"ok": schema_ok, "operation": operation,
+                         "tool_used": tools[0] if tools else None, "tools_used": tools}
     if not schema_ok:
         result["reason"] = "Invalid action structure or unknown operation"
         return result
-    tool = expected_tool
-    if tool == "zap":
-        parameters["target"] = parameters.get("target") or targets[0]
-        parameters.pop("targets", None)
+
     from app.scanners import bootstrap, get_tool
     bootstrap()
-    adapter = get_tool(tool)
-    if adapter is None:
-        result["reason"] = f"Unknown tool: {tool}"
-        return result
-
-    # 2. ACL validation ----------------------------------------------------------
     permission = OPERATION_ACL.get(operation, "scan:create")
     acl = decide(user, organization_id, permission)
     result["acl"] = acl.to_dict()
@@ -194,38 +166,56 @@ def _validate_and_maybe_execute(user, organization_id: int, action: dict,
         result["reason"] = f"ACL denied: {acl.reason}"
         return result
 
-    # 3+4. Scope + policy validation --------------------------------------------
-    decision = evaluate_action(organization_id, tool, operation, targets,
-                               parameters=parameters,
-                               user_role=getattr(user, "role_in", lambda _: None)(organization_id))
-    result["policy"] = decision.to_dict()
-    scope_check = next((c for c in decision.checks if c["name"] == "scope"), None)
-    result["scope"] = scope_check or {"passed": False, "detail": "scope not evaluated"}
-    if not decision.allowed:
+    evaluations = []
+    for tool in tools:
+        adapter = get_tool(tool)
+        if adapter is None:
+            result["reason"] = f"Unknown tool: {tool}"
+            return result
+        parameters = parameters_for_tool(operation, tool, targets, base_parameters)
+        decision = evaluate_action(organization_id, tool, operation, targets,
+                                   parameters=parameters,
+                                   user_role=getattr(user, "role_in", lambda _: None)(organization_id))
+        valid, reason = adapter.validate(parameters)
+        evaluations.append((tool, parameters, decision, valid, reason))
+
+    result["policies"] = [decision.to_dict() for _tool, _params, decision, _valid, _reason
+                           in evaluations]
+    if evaluations:
+        first_decision = evaluations[0][2]
+        result["policy"] = first_decision.to_dict()
+        result["scope"] = next((c for c in first_decision.checks if c["name"] == "scope"),
+                                {"passed": False, "detail": "scope not evaluated"})
+    denied = [(tool, decision) for tool, _params, decision, _valid, _reason in evaluations
+              if not decision.allowed]
+    invalid = [(tool, reason) for tool, _params, _decision, valid, reason in evaluations
+               if not valid]
+    if denied:
         result["reason"] = "Policy denied: " + "; ".join(
-            c["detail"] for c in decision.checks if not c["passed"])
+            c["detail"] for c in denied[0][1].checks if not c["passed"])
         return result
-
-    valid, reason = adapter.validate(parameters)
-    if not valid:
-        result["reason"] = f"Invalid tool parameters: {reason}"
+    if invalid:
+        result["reason"] = f"Invalid tool parameters: {invalid[0][1]}"
         return result
-
-    # 5. Approval gate ------------------------------------------------------------
-    if decision.requires_approval:
+    pending = [tool for tool, _params, decision, _valid, _reason in evaluations
+               if decision.requires_approval]
+    if pending:
         result["decision"] = "pending_approval"
         result["reason"] = ("Warning: this operation actively interacts with the target. "
                              "Confirm authorization; explicit approval is required before execution")
+        result["pending_tools"] = pending
         return result
 
-    # Execution ---------------------------------------------------------------------
     from app.services.jobs import enqueue
-    job = enqueue(organization_id, getattr(user, "id", None), tool, operation,
-                  targets, parameters, validation={"llm_request_id": record.id,
-                                                   "policy": decision.to_dict()},
-                  source="llm")
+    jobs = []
+    for tool, parameters, decision, _valid, _reason in evaluations:
+        jobs.append(enqueue(organization_id, getattr(user, "id", None), tool, operation,
+                            targets, parameters,
+                            validation={"llm_request_id": record.id,
+                                        "policy": decision.to_dict()}, source="llm"))
     result["decision"] = "allowed"
     result["reason"] = "All validation layers passed; execution started"
     result["execution_status"] = "queued"
-    result["job_id"] = job.id
+    result["job_id"] = jobs[0].id
+    result["job_ids"] = [job.id for job in jobs]
     return result

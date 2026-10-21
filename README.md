@@ -122,8 +122,10 @@ their jobs fail with a clear error and the UI shows availability.
 | amass     | passive OSINT discovery    | `apt install amass` |
 | dnsx      | DNS enumeration            | `go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest` |
 | naabu     | fast port scan             | `go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest` |
-| httpx     | web probing / tech detect  | Kali: `sudo apt install httpx-toolkit` (executable `httpx-toolkit`, logical ASM name `httpx`); upstream: `go install github.com/projectdiscovery/httpx/cmd/httpx@latest` |
-| nuclei    | vulnerability scan         | `go install github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest` |
+| httpx     | web probing / tech / fingerprint detect | Kali: `sudo apt install httpx-toolkit` (executable `httpx-toolkit`, logical ASM name `httpx`); upstream: `go install github.com/projectdiscovery/httpx/cmd/httpx@latest` |
+| webanalyze | web technology fingerprinting | Optional Go binary; set `WEBANALYZE_BINARY` when it is not on PATH |
+| whatweb   | web technology fingerprinting | `apt install whatweb` (logical ASM name `whatweb`) |
+| nuclei    | vulnerability scan / explicit technology templates | `go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest` |
 | zap       | web baseline scan (optional)| `apt install zaproxy` |
 | openvas   | NASL vulnerability scan (optional) | requires GVM daemon |
 

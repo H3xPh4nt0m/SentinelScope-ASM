@@ -164,42 +164,66 @@ def audit_log():
 @api_bp.route("/scans", methods=["POST"])
 @require_perm("scan:create")
 def create_scan():
-    """Create a scan via API with the same full validation chain."""
+    """Create one or more independently validated scan jobs."""
     from app.services.jobs import enqueue
     from app.scanners import bootstrap, get_tool
+    from app.scanners.operations import normalize_tools, parameters_for_tool
     payload = request.get_json(silent=True) or {}
-    tool = str(payload.get("tool", "")).strip().lower()
     operation = str(payload.get("operation", "")).strip().lower()
     targets = [str(t).strip().lower() for t in (payload.get("targets") or [])][:20]
-    parameters = dict(payload.get("parameters") or {})
-    if not tool or not operation or not targets:
-        return jsonify({"error": "tool, operation and targets are required"}), 400
+    requested_tools = payload.get("tools") if "tools" in payload else payload.get("tool")
+    base_parameters = dict(payload.get("parameters") or {})
+    if not operation or not targets:
+        return jsonify({"error": "operation and targets are required"}), 400
+    try:
+        tools = normalize_tools(operation, requested_tools)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     bootstrap()
-    adapter = get_tool(tool)
-    if adapter is None:
-        return jsonify({"error": f"unknown tool: {tool}"}), 400
-    if tool == "zap":
-        parameters["target"] = parameters.get("target") or targets[0]
-        parameters.pop("targets", None)
-    valid, reason = adapter.validate(parameters)
-    if not valid:
-        return jsonify({"error": "invalid tool parameters", "reason": reason}), 400
     acl = decide(_user(), current_org(), "scan:create")
-    policy = evaluate_action(current_org(), tool, operation, targets, parameters=parameters)
     if not acl.allowed:
         audit(action="scan_create", resource="scan", result="denied", reason=acl.reason,
               user=_user(), organization_id=current_org())
         return jsonify({"decision": "denied", "layer": "acl", "reason": acl.reason}), 403
-    if not policy.allowed:
+    evaluations = []
+    for tool in tools:
+        parameters = parameters_for_tool(operation, tool, targets, base_parameters)
+        adapter = get_tool(tool)
+        if adapter is None:
+            return jsonify({"error": f"unknown tool: {tool}"}), 400
+        valid, reason = adapter.validate(parameters)
+        if not valid:
+            return jsonify({"error": "invalid tool parameters", "tool": tool,
+                            "reason": reason}), 400
+        policy = evaluate_action(current_org(), tool, operation, targets, parameters=parameters)
+        evaluations.append((tool, parameters, policy))
+    denied = [(tool, policy) for tool, _params, policy in evaluations if not policy.allowed]
+    if denied:
+        tool, policy = denied[0]
         audit(action="scan_create", resource="scan", result="denied", reason="policy denied",
               user=_user(), organization_id=current_org(),
-              details={"tool": tool, "operation": operation})
-        return jsonify({"decision": "denied", "layer": "policy",
+              details={"tools": tools, "operation": operation})
+        return jsonify({"decision": "denied", "layer": "policy", "tool": tool,
                         "policy": policy.to_dict()}), 403
-    job = enqueue(current_org(), _user().id, tool, operation, targets, parameters,
-                  validation={"policy": policy.to_dict(), "acl": acl.to_dict()},
-                  source="manual")
-    return jsonify({"decision": "allowed", "job": job.to_dict()}), 201
+    approval = bool(payload.get("approval"))
+    pending = [(tool, policy) for tool, _params, policy in evaluations
+               if policy.requires_approval and not approval]
+    if pending:
+        tool, policy = pending[0]
+        return jsonify({"decision": "pending_approval", "tool": tool,
+                        "policy": policy.to_dict()}), 202
+    jobs = []
+    for tool, parameters, policy in evaluations:
+        jobs.append(enqueue(current_org(), _user().id, tool, operation, targets, parameters,
+                            validation={"policy": policy.to_dict(), "acl": acl.to_dict(),
+                                        "approved": approval}, source="manual"))
+    job_dicts = [job.to_dict() for job in jobs]
+    audit(action="scan_create", resource="scan", resource_id=jobs[0].id, user=_user(),
+          organization_id=current_org(),
+          details={"tools": tools, "operation": operation,
+                   "job_ids": [job.id for job in jobs]})
+    return jsonify({"decision": "allowed", "job": job_dicts[0], "job_id": jobs[0].id,
+                    "jobs": job_dicts, "job_ids": [job.id for job in jobs]}), 201
 
 
 def _user():

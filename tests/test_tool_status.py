@@ -1,7 +1,7 @@
 """Tool discovery/status tests, including Kali's httpx-toolkit naming."""
 
 from app.scanners import base
-from app.scanners.web import HttpxTool, ZapTool
+from app.scanners.web import HttpxTool, WebAnalyzeTool, WhatWebTool, ZapTool
 from app.scanners.crawling import WaymoreTool, SubzyTool
 
 
@@ -20,6 +20,13 @@ class TestKaliHttpxResolution:
         monkeypatch.setenv("HTTPX_BINARY", "/opt/projectdiscovery/httpx")
         monkeypatch.setattr("app.scanners.web.shutil.which", lambda _name: None)
         assert HttpxTool().binary == "/opt/projectdiscovery/httpx"
+
+    def test_technology_binary_overrides(self, monkeypatch):
+        monkeypatch.setenv("WEBANALYZE_BINARY", "/opt/webanalyze")
+        monkeypatch.setenv("WHATWEB_BINARY", "/opt/whatweb")
+        monkeypatch.setattr("app.scanners.web.shutil.which", lambda _name: None)
+        assert WebAnalyzeTool().binary == "/opt/webanalyze"
+        assert WhatWebTool().binary == "/opt/whatweb"
 
 
 class TestToolStatusCache:
@@ -80,6 +87,12 @@ class TestExternalToolVersionFlags:
 
     def test_zap_version_flag(self):
         assert ZapTool.version_flag == ("-version",)
+
+    def test_whatweb_version_flag(self):
+        assert WhatWebTool.version_flag == ("--version",)
+
+    def test_webanalyze_has_no_version_probe(self):
+        assert WebAnalyzeTool.version_flag == ()
 
     def test_subzy_version_flag(self):
         assert SubzyTool.version_flag == ("version",)

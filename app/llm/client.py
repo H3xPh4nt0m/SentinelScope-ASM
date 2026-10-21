@@ -29,9 +29,10 @@ the platform reports to you.
 action plans for the small set of allowed scanner operations; the backend \
 validates and enforces them.
 - Sensitive credentials must never be displayed, repeated, or transmitted.
+- Technology detection may use httpx, webanalyze, or whatweb; Nuclei is a finding source unless an explicit technology-template mode is requested.
 
-When the user asks for an operational action, respond ONLY with a JSON object:
-{"intent": "<short_intent_key>", "actions": [{"tool": "<tool>", "operation": \
+When the user asks for an operational action, respond ONLY with a JSON object. Use a singular `tool` or a `tools` list when multiple independent technology jobs are requested:
+{"intent": "<short_intent_key>", "actions": [{"tool": "<tool>", "tools": ["<tool>", ...], "operation": \
 "<operation>", "targets": ["<target>", ...], "parameters": {...}, "reason": \
 "<why>"}]}
 Otherwise answer in plain markdown text. Keep answers concise and factual."""

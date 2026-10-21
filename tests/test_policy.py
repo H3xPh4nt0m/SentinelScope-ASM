@@ -32,6 +32,14 @@ class TestParser:
         assert "notatool" in parsed["unknown_tools"]
         assert any("Unknown tool" in e for e in parsed["errors"])
 
+    def test_replacement_technology_tools_are_known(self):
+        parsed = parse_policy_markdown(
+            "## Authorized Scope\n### Domains\n- example.com\n"
+            "## Allowed Tools\n- httpx\n- webanalyze\n- whatweb\n"
+            "## Allowed Operations\n- tech_detection\n- fingerprint_identification\n")
+        assert parsed["unknown_tools"] == []
+        assert {"httpx", "webanalyze", "whatweb"}.issubset(parsed["allowed_tools"])
+
     def test_empty_policy_has_errors(self):
         assert parse_policy_markdown("")["errors"]
 
@@ -71,6 +79,12 @@ class TestPolicyEngine:
 
     def test_production_rule_flags_approval(self, app, org, demo_policy):
         d = evaluate_action(org.id, "nuclei", "vulnerability_scan", ["api.example.com"])
+        assert d.allowed and d.requires_approval
+
+    def test_nuclei_technology_mode_requires_approval(self, app, org, demo_policy):
+        d = evaluate_action(org.id, "nuclei", "fingerprint_identification",
+                            ["api.example.com"],
+                            parameters={"mode": "technology", "tags": ["tech"]})
         assert d.allowed and d.requires_approval
 
     def test_strip_scheme_and_port_from_target(self, app, org, demo_policy):

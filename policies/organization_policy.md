@@ -20,6 +20,8 @@ Name: Example Organization
 - nmap
 - naabu
 - httpx
+- webanalyze
+- whatweb
 - nuclei
 - zap
 - openvas
@@ -31,7 +33,6 @@ Name: Example Organization
 - puredns
 - waymore
 - ffuf
-- xingfinger
 - playwright
 
 ## Allowed Operations
@@ -41,6 +42,8 @@ Name: Example Organization
 - service_detection
 - web_probe
 - vulnerability_scan
+- tech_detection
+- fingerprint_identification
 - passive_recon
 - web_crawl
 - url_discovery

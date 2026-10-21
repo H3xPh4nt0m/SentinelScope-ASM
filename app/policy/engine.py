@@ -97,14 +97,19 @@ def evaluate_action(organization_id: int, tool: str, operation: str, targets: li
                                                f"{', '.join(out_of_scope[:5])}"))
 
     # 5. Production rules / intrusiveness ------------------------------------
-    intrusive = operation_intrusiveness(operation) == "active"
     parameters = parameters or {}
+    intrusive = (operation_intrusiveness(operation) == "active"
+                 or (tool.lower() == "nuclei" and parameters.get("mode") == "technology"))
     aggressive_flags = {"-A", "-T5", "-T4", "--script", "aggressive"} if tool.lower() == "nmap" else set()
     uses_aggressive = any(str(v) in aggressive_flags for v in _flatten_params(parameters))
     if intrusive and (uses_aggressive or _targets_restricted(operation, parsed)):
         decision.requires_approval = True
         decision.add("intrusiveness", True,
                      "Warning: this active operation will interact with the target; authorization and explicit approval are required")
+    if tool.lower() == "nuclei" and parameters.get("mode") == "technology":
+        decision.requires_approval = True
+        decision.add("technology_mode", True,
+                     "Nuclei technology templates are active; explicit approval is required")
 
     # 6. Production restriction rule -----------------------------------------
     if _policy_restricts_production_active(parsed) and intrusive:

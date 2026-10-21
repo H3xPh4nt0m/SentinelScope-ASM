@@ -15,8 +15,8 @@ Markdown is parsed by `app/policy/parser.py`. Sections (case-insensitive heading
 |---------|---------|
 | `## Organization` | `Name: ...` |
 | `## Authorized Scope` → `### Domains` / `### IP Ranges` | exact domains and `*.wildcard` domains; IPv4 CIDRs |
-| `## Allowed Tools` | tool names from the registry: amass, subfinder, dnsx, nmap, naabu, httpx, nuclei, zap, openvas |
-| `## Allowed Operations` | subdomain_discovery, dns_enumeration, port_scan, service_detection, web_probe, vulnerability_scan, passive_recon, tech_detection |
+| `## Allowed Tools` | tool names from the registry: subfinder, dnsx, nmap, naabu, httpx, webanalyze, whatweb, nuclei, zap, openvas |
+| `## Allowed Operations` | subdomain_discovery, dns_enumeration, port_scan, service_detection, web_probe, vulnerability_scan, passive_recon, tech_detection, fingerprint_identification |
 | `## Restricted Operations` | operations explicitly forbidden (e.g. brute_force) |
 | `## Production Rules` | prose rules; recognized: "Production assets require non-intrusive scans only", "Any intrusive scan requires explicit approval" |
 | `## Vulnerability Scanning` | `Allowed severities: low, medium, high, critical` plus versioned notes |

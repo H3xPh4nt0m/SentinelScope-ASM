@@ -52,6 +52,9 @@ def approve_action(action_id: int):
     from app.models.audit import LLMAction
     from app.services.jobs import enqueue
     from app.policy.engine import evaluate_action
+    from app.acl.engine import decide
+    from app.scanners import bootstrap, get_tool
+    from app.scanners.operations import normalize_tools, parameters_for_tool
     action = db_get(LLMAction, action_id)
     if action is None or action.organization_id != current_org():
         from flask import abort
@@ -60,9 +63,28 @@ def approve_action(action_id: int):
         flash("This action is not pending approval.", "warning")
         return redirect(url_for("llm.index"))
     a = action.action
-    decision = evaluate_action(current_org(), a.get("tool", ""), a.get("operation", ""),
-                               a.get("targets") or [], parameters=a.get("parameters") or {})
-    if not decision.allowed:
+    operation = str(a.get("operation", "")).strip().lower()
+    targets = [str(target).strip() for target in (a.get("targets") or []) if str(target).strip()]
+    validated_tools = (action.validation or {}).get("schema", {}).get("tools_used")
+    requested = validated_tools or (a.get("tools") if "tools" in a else a.get("tool"))
+    try:
+        tools = normalize_tools(operation, requested)
+    except ValueError:
+        tools = []
+    acl = decide(_user(), current_org(), "scan:create")
+    bootstrap()
+    evaluations = []
+    for tool in tools:
+        adapter = get_tool(tool)
+        parameters = parameters_for_tool(operation, tool, targets,
+                                         a.get("parameters") or {})
+        decision = evaluate_action(current_org(), tool, operation, targets,
+                                   parameters=parameters)
+        valid, reason = adapter.validate(parameters) if adapter else (False, "unknown tool")
+        evaluations.append((tool, parameters, decision, valid, reason))
+    if not acl.allowed or not evaluations or any(not decision.allowed or not valid
+                                                  for _tool, _params, decision, valid, _reason
+                                                  in evaluations):
         action.decision = "denied"
         action.decision_reason = "Re-validation failed at approval time"
         db.session.commit()
@@ -70,18 +92,23 @@ def approve_action(action_id: int):
               organization_id=current_org(), reason="re-validation failed")
         flash("Action denied on re-validation.", "danger")
         return redirect(url_for("llm.index"))
-    job = enqueue(current_org(), _user().id, a["tool"], a["operation"], a.get("targets") or [],
-                  a.get("parameters") or {},
-                  validation={"policy": decision.to_dict(), "approved_by": _user().id},
-                  source="llm")
+    jobs = []
+    for tool, parameters, decision, _valid, _reason in evaluations:
+        jobs.append(enqueue(current_org(), _user().id, tool, operation, targets, parameters,
+                            validation={"policy": decision.to_dict(), "acl": acl.to_dict(),
+                                        "approved_by": _user().id}, source="llm"))
     action.decision = "allowed"
     action.execution_status = "queued"
-    action.scan_job_id = job.id
+    action.scan_job_id = jobs[0].id
+    action.validation = {"tools": tools, "job_ids": [job.id for job in jobs],
+                         "policies": [decision.to_dict() for _tool, _params, decision,
+                                       _valid, _reason in evaluations]}
     db.session.commit()
-    audit(action="llm_approve", resource="llm", resource_id=job.id, user=_user(),
-          organization_id=current_org())
-    flash(f"Approved. Scan queued as job #{job.id}.", "success")
-    return redirect(url_for("scans.job", job_id=job.id))
+    audit(action="llm_approve", resource="llm", resource_id=jobs[0].id, user=_user(),
+          organization_id=current_org(), details={"tools": tools,
+                                                   "job_ids": [job.id for job in jobs]})
+    flash(f"Approved. {len(jobs)} scan job(s) queued.", "success")
+    return redirect(url_for("scans.job", job_id=jobs[0].id))
 
 
 def _user():

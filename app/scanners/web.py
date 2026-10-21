@@ -1,9 +1,8 @@
-"""Web tool adapters: httpx, nuclei, and OWASP ZAP."""
+"""Web probing, technology detection, vulnerability, and ZAP adapters."""
 import json
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -75,6 +74,139 @@ class HttpxTool(SecurityTool):
         return out
 
 
+class WebAnalyzeTool(SecurityTool):
+    name = "webanalyze"
+    binary = "webanalyze"
+    version_flag = ()
+    META = {"operation": "fingerprint_identification", "intrusiveness": "passive",
+            "output": "technologies"}
+
+    def __init__(self, **overrides):
+        super().__init__(**overrides)
+        configured = os.environ.get("WEBANALYZE_BINARY")
+        home_binary = os.path.expanduser("~/go/bin/webanalyze")
+        self.binary = (configured or shutil.which("webanalyze")
+                       or (home_binary if os.path.isfile(home_binary) else "webanalyze"))
+
+    def version(self) -> str:
+        return ""
+
+    def validate(self, parameters: dict) -> tuple[bool, str]:
+        targets = parameters.get("targets") or [parameters.get("target")]
+        if not targets or not any(targets):
+            return False, "missing 'target' parameter"
+        for target in targets:
+            valid, reason = _validate_http_target(target, "webanalyze target")
+            if not valid:
+                return False, reason
+        return True, ""
+
+    def build_command(self, parameters: dict) -> list[str]:
+        target = parameters.get("target") or _first_target(parameters.get("targets"))
+        return ["-host", str(target), "-output", "json", "-silent"]
+
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+        targets = parameters.get("targets") or [parameters.get("target")]
+        if len(targets) <= 1:
+            return super().execute(parameters, timeout=timeout, on_output=on_output)
+        if not self.is_available():
+            raise ToolUnavailableError("tool 'webanalyze' is not installed")
+        ok, reason = self.validate(parameters)
+        if not ok:
+            return ToolResult(ok=False, stderr=reason)
+        with tempfile.TemporaryDirectory(prefix="asm-webanalyze-") as workdir:
+            hosts_path = Path(workdir) / "targets.txt"
+            hosts_path.write_text("\\n".join(targets) + "\\n", encoding="utf-8")
+            cmd = [self.binary, "-hosts", str(hosts_path), "-output", "json", "-silent"]
+            return self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
+
+    def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
+        records = []
+        for line in (raw_result or "").splitlines():
+            line = line.strip()
+            if not line.startswith(("{", "[")):
+                continue
+            try:
+                payload = json.loads(line)
+            except (TypeError, json.JSONDecodeError):
+                continue
+            values = payload if isinstance(payload, list) else [payload]
+            for item in values:
+                record = _normalize_webanalyze_record(item, parameters)
+                if record:
+                    records.append(record)
+        return records
+
+
+class WhatWebTool(SecurityTool):
+    name = "whatweb"
+    binary = "whatweb"
+    version_flag = ("--version",)
+    META = {"operation": "fingerprint_identification", "intrusiveness": "passive",
+            "output": "technologies"}
+
+    def __init__(self, **overrides):
+        super().__init__(**overrides)
+        configured = os.environ.get("WHATWEB_BINARY")
+        self.binary = configured or shutil.which("whatweb") or "whatweb"
+
+    def validate(self, parameters: dict) -> tuple[bool, str]:
+        targets = parameters.get("targets") or [parameters.get("target")]
+        if not targets or not any(targets):
+            return False, "missing 'target' parameter"
+        for target in targets:
+            valid, reason = _validate_http_target(target, "WhatWeb target")
+            if not valid:
+                return False, reason
+        return True, ""
+
+    def build_command(self, parameters: dict) -> list[str]:
+        targets = parameters.get("targets") or [parameters.get("target")]
+        report_path = parameters.get("report_path") or "/tmp/whatweb-report.json"
+        return ["--quiet", "--no-errors", f"--log-json={report_path}",
+                *(str(target) for target in targets)]
+
+    def execute(self, parameters: dict, timeout: int = 600, on_output=None) -> ToolResult:
+        if not self.is_available():
+            raise ToolUnavailableError("tool 'whatweb' is not installed")
+        ok, reason = self.validate(parameters)
+        if not ok:
+            return ToolResult(ok=False, stderr=reason)
+        with tempfile.TemporaryDirectory(prefix="asm-whatweb-") as workdir:
+            report_path = str(Path(workdir) / "report.json")
+            params = dict(parameters)
+            params["report_path"] = report_path
+            cmd = [self.binary, *self.build_command(params)]
+            result = self.run_command(cmd, timeout=timeout, on_output=on_output, cwd=workdir)
+            report_file = Path(report_path)
+            report = report_file.read_text(encoding="utf-8", errors="replace") \
+                if report_file.is_file() else ""
+            report_ok = False
+            if report.strip():
+                try:
+                    json.loads(report)
+                    report_ok = True
+                except json.JSONDecodeError:
+                    pass
+            return ToolResult(ok=not result.timed_out and (result.ok or report_ok),
+                              raw_output=report or result.raw_output,
+                              stderr=result.stderr, returncode=result.returncode,
+                              timed_out=result.timed_out, command=cmd)
+
+    def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
+        try:
+            payload = json.loads(raw_result or "")
+        except (TypeError, json.JSONDecodeError):
+            return []
+        values = payload if isinstance(payload, list) else [payload]
+        records = []
+        for item in values:
+            record = _normalize_whatweb_record(item, parameters)
+            if record:
+                records.append(record)
+        return records
+
+
 class NucleiTool(SecurityTool):
     name = "nuclei"
     binary = "nuclei"
@@ -86,13 +218,23 @@ class NucleiTool(SecurityTool):
     def validate(self, parameters: dict) -> tuple[bool, str]:
         if not parameters.get("targets"):
             return False, "missing 'targets' parameter"
+        if parameters.get("mode") == "technology":
+            if not parameters.get("tags") and not parameters.get("templates"):
+                return False, "technology mode requires 'tags' or 'templates'"
         return True, ""
 
     def build_command(self, parameters: dict) -> list[str]:
         cmd = ["-jsonl", "-silent", "-nc"]
-        severities = parameters.get("severity") or []
-        if severities and "all" not in severities:
-            cmd += ["-severity", ",".join(severities)]
+        if parameters.get("mode") == "technology":
+            tags = parameters.get("tags") or []
+            if isinstance(tags, str):
+                tags = [tags]
+            if tags:
+                cmd += ["-tags", ",".join(str(tag) for tag in tags)]
+        else:
+            severities = parameters.get("severity") or []
+            if severities and "all" not in severities:
+                cmd += ["-severity", ",".join(severities)]
         templates = parameters.get("templates")
         if templates:
             cmd += ["-t", templates]
@@ -101,6 +243,8 @@ class NucleiTool(SecurityTool):
         return cmd
 
     def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
+        if parameters.get("mode") == "technology":
+            return self._normalize_technology(raw_result, parameters)
         out = []
         for line in raw_result.splitlines():
             line = line.strip()
@@ -126,6 +270,25 @@ class NucleiTool(SecurityTool):
                 "evidence": rec.get("extracted-results") or matched,
                 "remediation": info.get("remediation") or "",
             })
+        return out
+
+    def _normalize_technology(self, raw_result: str, parameters: dict) -> list[dict]:
+        out = []
+        for line in (raw_result or "").splitlines():
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            info = rec.get("info") or {}
+            name = str(info.get("name") or rec.get("template-id") or "").strip()
+            target = rec.get("matched-at") or rec.get("host") or _first_target(parameters.get("targets"))
+            if not name or not target:
+                continue
+            out.append(_webapp_record(target, [name], parameters.get("parent"),
+                                      status_code=rec.get("status-code")))
         return out
 
 
@@ -232,10 +395,103 @@ class ZapTool(SecurityTool):
         return _normalize_zap_json(data, parameters)
 
 
+def _validate_http_target(target, label: str) -> tuple[bool, str]:
+    value = str(target).strip()
+    parsed = urlparse(value)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False, f"{label} must be an absolute http(s) URL"
+    if value.startswith("-") or any(ch in value for ch in ("\x00", "\n", "\r")):
+        return False, f"invalid {label}"
+    return True, ""
+
+
 def _first_target(targets) -> str:
     if isinstance(targets, (list, tuple)) and targets:
         return str(targets[0])
     return ""
+
+
+def _webapp_record(target: str, technologies: list[str], parent: str | None = None,
+                   *, title: str = "", webserver: str = "", status_code=None) -> dict | None:
+    target = str(target or "").strip()
+    parsed = urlparse(target)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return None
+    seen = set()
+    names = []
+    for value in technologies or []:
+        name = str(value or "").strip()
+        key = name.casefold()
+        if name and key not in seen:
+            seen.add(key)
+            names.append(name)
+    if not names:
+        return None
+    return {"asset_type": "webapp", "name": target[:255],
+            "hostname": parsed.hostname, "scheme": parsed.scheme,
+            "port": parsed.port, "parent": parent or "",
+            "webapp": {"status_code": status_code, "title": str(title or ""),
+                       "technologies": names, "webserver": str(webserver or "")}}
+
+
+def _normalize_webanalyze_record(data, parameters: dict) -> dict | None:
+    if not isinstance(data, dict):
+        return None
+    target = (data.get("hostname") or data.get("host") or data.get("url") or
+              data.get("target") or _first_target(parameters.get("targets")) or
+              parameters.get("target"))
+    matches = data.get("matches") or data.get("apps") or data.get("technologies") or []
+    if isinstance(matches, dict):
+        matches = [{"app_name": key, **(value if isinstance(value, dict) else {})}
+                   for key, value in matches.items()]
+    technologies = []
+    for match in matches if isinstance(matches, list) else []:
+        if isinstance(match, str):
+            technologies.append(match)
+            continue
+        if not isinstance(match, dict):
+            continue
+        name = (match.get("app_name") or match.get("app") or match.get("name") or "").strip()
+        version = str(match.get("version") or "").strip()
+        if name:
+            technologies.append(f"{name} {version}".strip())
+    if target and "://" not in str(target):
+        target = "http://" + str(target)
+    return _webapp_record(target, technologies, parameters.get("parent"),
+                          title=data.get("title", ""), webserver=data.get("webserver", ""),
+                          status_code=data.get("status_code") or data.get("status"))
+
+
+def _normalize_whatweb_record(data, parameters: dict) -> dict | None:
+    if not isinstance(data, dict):
+        return None
+    target = data.get("target") or data.get("url") or data.get("URI") \
+        or parameters.get("target") or _first_target(parameters.get("targets"))
+    plugins = data.get("plugins") or {}
+    technologies = []
+    title = ""
+    webserver = ""
+    for name, details in plugins.items() if isinstance(plugins, dict) else []:
+        plugin_name = str(name)
+        values = details if isinstance(details, dict) else {}
+        versions = values.get("version") or []
+        strings = values.get("string") or []
+        if isinstance(versions, str):
+            versions = [versions]
+        if isinstance(strings, str):
+            strings = [strings]
+        lower_name = plugin_name.casefold()
+        if lower_name == "title" and strings:
+            title = str(strings[0])
+        if lower_name in ("httpserver", "http server", "server") and strings:
+            webserver = str(strings[0])
+        if lower_name in ("title", "httpserver", "http server", "server"):
+            continue
+        technology = f"{plugin_name} {versions[0]}".strip() if versions else plugin_name
+        technologies.append(technology)
+    status = data.get("http_status") or data.get("status_code")
+    return _webapp_record(target, technologies, parameters.get("parent"),
+                          title=title, webserver=webserver, status_code=status)
 
 
 def _normalize_zap_json(data: dict, parameters: dict) -> list[dict]:
@@ -344,6 +600,8 @@ def _extract_cve(info: dict) -> str | None:
 def register_all() -> None:
     from app.scanners.base import register
     register(HttpxTool())
+    register(WebAnalyzeTool())
+    register(WhatWebTool())
     register(NucleiTool())
     register(ZapTool())
     register(OpenvasTool())

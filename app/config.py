@@ -43,5 +43,9 @@ class Config:
     # Background workers
     JOB_WORKERS = int(os.environ.get("JOB_WORKERS", "2"))
 
+    # Scanner binary overrides
+    WEBANALYZE_BINARY = os.environ.get("WEBANALYZE_BINARY", "")
+    WHATWEB_BINARY = os.environ.get("WHATWEB_BINARY", "")
+
     # Directory holding organization policy markdown files
     POLICY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "policies")

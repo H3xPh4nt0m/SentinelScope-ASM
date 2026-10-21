@@ -34,6 +34,8 @@ Name: Demo Organization
 - nmap
 - naabu
 - httpx
+- webanalyze
+- whatweb
 - nuclei
 - zap
 - openvas
@@ -46,6 +48,8 @@ Name: Demo Organization
 - web_probe
 - vulnerability_scan
 - passive_recon
+- tech_detection
+- fingerprint_identification
 
 ## Restricted Operations
 - intrusive_scan

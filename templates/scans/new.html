@@ -21,6 +21,15 @@
         </select>
         <p class="muted" style="font-size:11px">ZAP runs an active baseline scan and writes a structured JSON report; approval and policy checks still apply.</p>
       </div>
+      <div id="technology-tools" style="display:{{ 'block' if form.operation in ('tech_detection', 'fingerprint_identification') else 'none' }}">
+        <label>Technology tools</label>
+        <select name="tools" id="technology-tool-select" multiple size="4">
+          {% for tool in tool_operations.keys() %}
+          <option value="{{ tool }}" {{ 'selected' if tool in form.tools or (not form.tools and tool == form.tool) }}>{{ tool }}</option>
+          {% endfor %}
+        </select>
+        <p class="muted" style="font-size:11px">Each selected tool runs as an independently validated scan job; httpx, Webanalyze, and WhatWeb produce technology records. Nuclei requires active-scan approval.</p>
+      </div>
       <label>Target (domain, host or IP within authorized scope)</label>
       <input name="target" value="{{ form.target }}" required placeholder="e.g. https://example.com">
       <label>Severity filter (vulnerability scans)</label>
@@ -48,7 +57,7 @@
     <h2>Validation Preview (last submission)</h2>
     {% if preview %}
       <dl class="kv">
-        <dt>Tool</dt><dd class="mono">{{ preview.tool }}</dd>
+        <dt>Tools</dt><dd class="mono">{{ preview.tools|join(', ') if preview.tools else preview.tool }}</dd>
         <dt>Operation</dt><dd>{{ preview.operation }}</dd>
         <dt>Target</dt><dd class="mono">{{ preview.target or '—' }}</dd>
       </dl>
@@ -75,10 +84,34 @@
 <script>
 const operationSelect = document.getElementById('operation');
 const vulnTool = document.getElementById('vulnerability-tool');
-if (operationSelect && vulnTool) {
-  operationSelect.addEventListener('change', () => {
-    vulnTool.style.display = operationSelect.value === 'vulnerability_scan' ? 'block' : 'none';
+const technologyTools = document.getElementById('technology-tools');
+const technologyToolSelect = document.getElementById('technology-tool-select');
+const operationTools = {{ tool_operations|tojson }};
+function refreshTechnologyTools() {
+  if (!technologyToolSelect || !operationSelect) return;
+  const operation = operationSelect.value;
+  const allowed = new Set(Object.entries(operationTools)
+    .filter(([, operations]) => operations.includes(operation))
+    .map(([tool]) => tool));
+  Array.from(technologyToolSelect.options).forEach(option => {
+    option.hidden = !allowed.has(option.value);
+    option.disabled = !allowed.has(option.value);
+    if (option.disabled) option.selected = false;
   });
+  const isTechnology = ['tech_detection', 'fingerprint_identification'].includes(operation);
+  if (isTechnology && !Array.from(technologyToolSelect.options).some(option => option.selected && !option.disabled)) {
+    const firstAllowed = Array.from(technologyToolSelect.options).find(option => !option.disabled);
+    if (firstAllowed) firstAllowed.selected = true;
+  }
+  technologyToolSelect.closest('div').style.display = isTechnology ? 'block' : 'none';
+}
+if (operationSelect) {
+  operationSelect.addEventListener('change', () => {
+    const isVuln = operationSelect.value === 'vulnerability_scan';
+    if (vulnTool) vulnTool.style.display = isVuln ? 'block' : 'none';
+    refreshTechnologyTools();
+  });
+  refreshTechnologyTools();
 }
 </script>
 {% endblock %}

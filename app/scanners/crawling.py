@@ -209,45 +209,6 @@ class FfufTool(URLTargetTool):
         return out
 
 
-class XingFingerTool(URLTargetTool):
-    """Adapter for deployments providing the XingFinger CLI/fingerprint database."""
-    name = "xingfinger"
-    binary = "xingfinger"
-    META = {"operation": "fingerprint_identification", "intrusiveness": "passive", "output": "technologies"}
-
-    def version(self) -> str:
-        # The CLI has no version flag; avoid showing its "unknown flag" error as a version.
-        return ""
-
-    def build_command(self, parameters: dict) -> list[str]:
-        return ["-u", parameters["target"], "-j"]
-
-    def normalize(self, raw_result: str, parameters: dict) -> list[dict]:
-        try:
-            data = json.loads(raw_result)
-        except (TypeError, json.JSONDecodeError):
-            return []
-        if not isinstance(data, dict):
-            return []
-        seen, technologies = set(), []
-        for item in str(data.get("cms") or "").split(","):
-            name = item.strip()
-            if name and name not in seen:
-                seen.add(name)
-                technologies.append(name)
-        if not technologies:
-            return []
-        target = str(parameters.get("target") or data.get("url") or "")
-        return [_endpoint_record(target, parameters.get("target")) | {
-            "asset_type": "webapp",
-            "webapp": {
-                "technologies": technologies,
-                "title": str(data.get("title") or ""),
-                "webserver": str(data.get("server") or ""),
-                "status_code": data.get("status_code"),
-            }}]
-
-
 class PlaywrightScreenshotTool(URLTargetTool):
     """Headless screenshot adapter; requires Python Playwright browsers installed."""
     name = "playwright"
@@ -307,6 +268,5 @@ def _endpoint_record(url: str, parent: str | None) -> dict:
 def register_all() -> None:
     from app.scanners.base import register
     for tool in (KatanaTool(), WaybackurlsTool(), GauTool(), DalfoxTool(), SubzyTool(),
-                 PureDNSTool(), WaymoreTool(), FfufTool(), XingFingerTool(),
-                 PlaywrightScreenshotTool()):
+                 PureDNSTool(), WaymoreTool(), FfufTool(), PlaywrightScreenshotTool()):
         register(tool)

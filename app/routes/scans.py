@@ -7,26 +7,10 @@ from app.auth.utils import current_org
 from app.policy.engine import evaluate_action
 from app.routes.helpers import _enforce_org, db_get, org_context, require_perm
 from app.scanners import bootstrap, get_tool, tool_status
+from app.scanners.operations import (OPERATIONS, default_tool, normalize_tools,
+                                     parameters_for_tool, tool_operations)
 
 scans_bp = Blueprint("scans", __name__, url_prefix="/scans")
-
-OPERATIONS = {
-    "subdomain_discovery": ("subfinder", {"domain": ""}),
-    "dns_enumeration": ("dnsx", {"domain": ""}),
-    "port_scan": ("nmap", {"target": ""}),
-    "service_detection": ("nmap", {"target": "", "service_detection": True}),
-    "web_probe": ("httpx", {"targets": []}),
-    "vulnerability_scan": ("nuclei", {"targets": [], "severity": ["high", "critical"]}),
-    "passive_recon": ("subfinder", {"domain": ""}),
-    "tech_detection": ("httpx", {"targets": []}),
-    "web_crawl": ("katana", {"target": ""}),
-    "url_discovery": ("waybackurls", {"domain": ""}),
-    "xss_scan": ("dalfox", {"target": ""}),
-    "subdomain_takeover": ("subzy", {"target": ""}),
-    "fingerprint_identification": ("xingfinger", {"target": ""}),
-    "site_screenshot": ("playwright", {"target": ""}),
-    "directory_scan": ("ffuf", {"target": ""}),
-}
 
 
 @scans_bp.route("/")
@@ -71,8 +55,10 @@ def tools():
 def new():
     org_id = current_org()
     bootstrap()
-    form = {"operation": request.form.get("operation", "port_scan"),
-            "tool": request.form.get("tool", "nuclei"),
+    operation = request.form.get("operation", "port_scan")
+    form = {"operation": operation,
+            "tool": request.form.get("tool", default_tool(operation) or "nmap"),
+            "tools": request.form.getlist("tools"),
             "target": request.form.get("target", ""),
             "severity": request.form.getlist("severity") or ["high", "critical"],
             "service_detection": bool(request.form.get("service_detection"))}
@@ -80,45 +66,80 @@ def new():
     if request.method == "POST":
         operation = form["operation"]
         target = form["target"].strip().lower()
-        default_tool, _defaults = OPERATIONS.get(operation, ("nmap", {}))
-        selected_tool = (form["tool"] if operation == "vulnerability_scan" else default_tool)
-        if operation == "vulnerability_scan" and selected_tool not in ("nuclei", "zap"):
-            selected_tool = default_tool
-        parameters = _build_parameters(operation, form, selected_tool)
-
+        if operation == "vulnerability_scan":
+            requested_tools = form["tool"] or None
+        elif operation in ("tech_detection", "fingerprint_identification"):
+            requested_tools = form["tools"] or form["tool"] or None
+        else:
+            requested_tools = None
+        try:
+            selected_tools = normalize_tools(operation, requested_tools)
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            selected_tools = []
         acl = decide(_user(), org_id, "scan:create")
-        policy = evaluate_action(org_id, selected_tool, operation, [target] if target else [],
-                                 parameters=parameters)
-        # Policy-driven approval gate: intrusive operations require the operator
-        # to explicitly approve (checkbox), which is captured in the audit log.
         approved = bool(request.form.get("approval"))
-        approval_needed = policy.allowed and policy.requires_approval and not approved
-        preview = {"operation": operation, "tool": selected_tool, "target": target,
-                   "acl": acl.to_dict(), "policy": policy.to_dict(),
-                   "allowed": acl.allowed and policy.allowed,
-                   "requires_approval": policy.requires_approval,
+        evaluations = []
+        for selected_tool in selected_tools:
+            parameters = parameters_for_tool(operation, selected_tool, target,
+                                             _build_parameters(operation, form, selected_tool))
+            adapter = get_tool(selected_tool)
+            if adapter is None:
+                evaluations.append({"tool": selected_tool, "error": f"Unknown tool: {selected_tool}",
+                                    "policy": {"allowed": False, "requires_approval": False,
+                                               "checks": [], "reasons": []}})
+                continue
+            valid, reason = adapter.validate(parameters)
+            policy = evaluate_action(org_id, selected_tool, operation, [target] if target else [],
+                                     parameters=parameters)
+            evaluations.append({"tool": selected_tool, "parameters": parameters,
+                                "valid": valid, "validation_error": reason,
+                                "policy": policy})
+        policy_allowed = all(getattr(item.get("policy"), "allowed", False)
+                             for item in evaluations) if evaluations else False
+        valid_allowed = all(item.get("valid", False) for item in evaluations) if evaluations else False
+        approval_needed = any(getattr(item.get("policy"), "requires_approval", False)
+                              for item in evaluations) and not approved
+        preview = {"operation": operation, "tool": selected_tools[0] if selected_tools else "",
+                   "tools": selected_tools, "target": target, "acl": acl.to_dict(),
+                   "policy": evaluations[0]["policy"].to_dict() if evaluations and
+                   hasattr(evaluations[0].get("policy"), "to_dict") else
+                   {"allowed": False, "requires_approval": False, "checks": [], "reasons": []},
+                   "policies": [item["policy"].to_dict() for item in evaluations
+                                if hasattr(item.get("policy"), "to_dict")],
+                   "allowed": acl.allowed and policy_allowed and valid_allowed,
+                   "requires_approval": any(getattr(item.get("policy"), "requires_approval", False)
+                                             for item in evaluations),
                    "approval_needed": approval_needed}
         if preview["allowed"] and not approval_needed and target:
             from app.services.jobs import enqueue
-            job = enqueue(org_id, _user().id, selected_tool, operation, [target], parameters,
-                          validation={"policy": policy.to_dict(), "acl": acl.to_dict(),
-                                      "approved": approved},
-                          source="manual")
-            audit(action="scan_create", resource="scan", resource_id=job.id, user=_user(),
-                  organization_id=org_id, details={"tool": selected_tool,
-                                                   "operation": operation, "target": target})
-            flash(f"Scan queued (job #{job.id}).", "success")
-            return redirect(url_for("scans.job", job_id=job.id))
+            jobs = []
+            for item in evaluations:
+                job = enqueue(org_id, _user().id, item["tool"], operation, [target],
+                              item["parameters"],
+                              validation={"policy": item["policy"].to_dict(),
+                                          "acl": acl.to_dict(), "approved": approved},
+                              source="manual")
+                jobs.append(job)
+            audit(action="scan_create", resource="scan", resource_id=jobs[0].id, user=_user(),
+                  organization_id=org_id,
+                  details={"tools": selected_tools, "operation": operation, "target": target,
+                           "job_ids": [job.id for job in jobs]})
+            flash(f"{len(jobs)} scan job(s) queued: {', '.join(str(job.id) for job in jobs)}.",
+                  "success")
+            return redirect(url_for("scans.job", job_id=jobs[0].id))
         if approval_needed:
             flash("Warning: this active operation will interact with the target. "
                   "Confirm authorization and tick the approval box before launch.", "warning")
-        audit(action="scan_create", resource="scan",
-              result="denied" if not preview["allowed"] else "blocked",
-              reason="active interaction requires explicit approval" if approval_needed
-              else "policy/ACL validation failed",
-              user=_user(), organization_id=org_id,
-              details={"operation": operation, "target": target})
-    return render_template("scans/new.html", operations=OPERATIONS, form=form,
+        if evaluations or selected_tools:
+            audit(action="scan_create", resource="scan",
+                  result="denied" if not preview["allowed"] else "blocked",
+                  reason="active interaction requires explicit approval" if approval_needed
+                  else "policy/ACL/tool validation failed",
+                  user=_user(), organization_id=org_id,
+                  details={"tools": selected_tools, "operation": operation, "target": target})
+    return render_template("scans/new.html", operations=OPERATIONS,
+                           tool_operations=tool_operations(), form=form,
                            preview=preview, **org_context())
 
 

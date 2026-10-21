@@ -52,8 +52,8 @@ KNOWN_INTRUSIVENESS = {"subdomain_discovery": "passive", "dns_enumeration": "pas
                        "site_screenshot": "active", "directory_scan": "active",
                        "nasl_scan": "active"}
 KNOWN_TOOLS = {"subfinder", "dnsx", "nmap", "naabu", "httpx", "nuclei",
-               "zap", "openvas", "katana", "waybackurls", "gau", "dalfox", "subzy",
-               "puredns", "waymore", "ffuf", "xingfinger", "playwright"}
+               "webanalyze", "whatweb", "zap", "openvas", "katana", "waybackurls", "gau",
+               "dalfox", "subzy", "puredns", "waymore", "ffuf", "playwright"}
 
 _SEVERITY_WORDS = {"low", "medium", "high", "critical", "info", "all", "none"}
 
